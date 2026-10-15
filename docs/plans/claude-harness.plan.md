@@ -92,7 +92,7 @@ e todos os `agents/openai.yaml`.
 | S2 | Skills genéricas | grilling, brainstorming, takeover, handoff, domain-modeling, systematic-debugging, repo-aware-architecture, sdd-workflow | AC1, AC2 | S1 |
 | S3 | Skills de planejamento | plan-for-cursor (+ contrato), plan-task, spec-task, change-task | AC1, AC2, AC7 | S1 |
 | S4 | Skills de auditoria | revise, audit-task, review-pr, revise-and-deploy | AC1, AC2 | S3 (contrato) |
-| S5 | `/execute` conforme o ADR-0065 do BrixBroker: só plano aprovado e commitado; o plano é teto de escopo; a revisão pre-gate usa o `reviewer` em contexto limpo; o `/revise` post-gate (veredito) roda numa sessão nova, não na que implementou | `skills/execute/**`, testes dos scripts | AC1, AC6 | S3, S4, A3, ADR-0065 mergeado |
+| S5 | `/execute` (decisão do owner de 2026-10-15; o ADR-0065 foi descartado e a autorização no BrixBroker vem de um `CLAUDE.local.md` pessoal): só plano aprovado e commitado; o plano é teto de escopo; a revisão pre-gate usa o `reviewer` em contexto limpo; o `/revise` post-gate (veredito) roda numa sessão nova, não na que implementou | `skills/execute/**`, testes dos scripts | AC1, AC6 | S3, S4, A3 |
 | S6 | Instalador e verify | `scripts/*`, `tests/test-install.ps1` | AC3, AC8 | S1–S5 |
 | S7 | Rollout (autorização separada) | Backup completo de `~/.claude/{CLAUDE.md,agents,skills}` → remover os 17 diretórios de skill, os 5 agentes e o `CLAUDE.md` instalados pelo v4 → instalar pelo `agentic-harness-claude` → nota de congelamento no README do v4 | AC9 | S6 |
 

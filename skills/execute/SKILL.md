@@ -7,16 +7,15 @@ disable-model-invocation: true
 
 # Execute an approved plan
 
-## Authority (BrixBroker ADR-0065)
+## Authority
 
-This skill writes product code only under the exception in BrixBroker ADR-0065:
-- the session is the owner's;
-- the plan is approved and committed under `.cursor/plans/`;
+Write product code only when the project instructions loaded in this session authorize `/execute` to implement. That authorization can come from the repository's `CLAUDE.md` or from the owner's personal `CLAUDE.local.md`. Without it, stop before any edit and tell the owner. Even with it:
+- the plan must be approved and committed under `.cursor/plans/`;
 - the plan is the scope ceiling. Anything it does not order is not implemented "in passing".
 
-Before any edit, confirm that the repository's `CLAUDE.md` contains the ADR-0065 exception. If it does not, stop and tell the owner.
+The owner configures permissions, never this skill. If a permission rule (such as a project `deny`) blocks `Edit` or `Write` on product paths, stop and report it. Never work around a permission rule through the shell or by editing settings files.
 
-If the `.claude/settings.json` deny still blocks `Edit` or `Write` on product paths, stop and say so. Never work around the deny through the shell; the owner disables it locally (procedure in ADR-0065).
+In BrixBroker, implement slices in the main session only, without `implementer` subagents in worktrees. Whether a worktree subagent inherits the session's permissions and instructions is unverified.
 
 ## Contract source
 
@@ -68,7 +67,7 @@ Handle each outcome:
   - If valid evidence already proves the final gate, report that no work remains.
 - **`blocked`, `needs_status_review`, `no_match`:** inspect the plan's native status and the current diff, and resolve the blocker before implementing.
 
-Confirm the plan file is committed. If it is not, stop: ADR-0065 covers only committed plans.
+Confirm the plan file is committed. If it is not, stop: only committed plans are executable.
 
 ## 2. Preflight and coverage
 
@@ -94,7 +93,7 @@ A gate for an earlier SHA never validates the changed tree.
 
 The main session implements, following `execute-tdd.md`. Work one slice at a time, observe red before green, and record the deviation rules of `execute.md` §2.
 
-Use `implementer` subagents only for slices that meet all of these:
+Outside BrixBroker (see Authority), use `implementer` subagents only for slices that meet all of these:
 - the slice is ready;
 - its write-set is disjoint from every other running slice;
 - its shared contracts are already settled.
@@ -172,6 +171,6 @@ Tell the owner:
 - the slice outcomes, correction rounds, and deviations;
 - the time spent per stage.
 
-The next step is `/revise post-gate` in a **new session**, because ADR-0065 forbids the implementing session from auditing its own delivery. Do not push or open a PR unless the owner asks.
+The next step is `/revise post-gate` in a **new session**, because the implementing session must not audit its own delivery. Do not push or open a PR unless the owner asks.
 
 Never claim a gate passed if it was skipped, failed, or observed another commit or tree.

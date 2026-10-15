@@ -18,7 +18,7 @@ Field rules:
 - **Timestamps:** ISO 8601 with an explicit offset.
 - **Durations:** decimal minutes, rounded to one decimal place.
 - **`peak_workers`:** the largest number of `implementer` subagents running at once; `0` when the main session implemented everything.
-- **`post_gate_review_minutes`:** stays `0`. Under ADR-0065, the post-gate `/revise` runs in a separate session and records its own line in `rodadas.csv`.
+- **`post_gate_review_minutes`:** stays `0`. The post-gate `/revise` runs in a separate session and records its own line in `rodadas.csv`.
 - **`gate_status`:** `PASSED`, `FAILED`, `NOT_RUN`, or `INVALIDATED`.
 - **`gate_sha`:** the commit the final gate actually observed. When the status is `PASSED`, it must equal `commit_sha`.
 - **`tree_clean`:** the observed post-gate result (`true`/`false`).
