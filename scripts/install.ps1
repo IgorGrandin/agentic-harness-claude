@@ -69,6 +69,7 @@ Install-File $manifest.instructions
 foreach ($agent in $manifest.agents) { Install-File "agents\$agent.md" }
 foreach ($skill in $manifest.skills) { Install-Directory "skills\$skill" }
 
-$summary = "agentic-harness-claude installed into ${home_}: $(@($manifest.agents).Count) agents, $(@($manifest.skills).Count) skills"
+$verb = if ($WhatIfPreference) { 'would install (WhatIf)' } else { 'installed' }
+$summary = "agentic-harness-claude $verb into ${home_}: $(@($manifest.agents).Count) agents, $(@($manifest.skills).Count) skills"
 if (Test-Path -LiteralPath $backupRoot) { $summary += "; backup at $backupRoot" }
 Write-Host $summary
