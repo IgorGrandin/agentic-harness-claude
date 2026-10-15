@@ -19,7 +19,7 @@ congelado: não é apagado e serve de backup e rollback.
 | T2 | O v4 é congelado, não apagado. As instalações do Codex (`~/.codex`, `~/.agents`, `~/.agentic-harness`) não são tocadas | owner + este plano |
 | T3 | As skills do BrixBroker ficam fora do repo do produto, em `~/.claude/skills/`, exclusivas do owner | ADR-0039 do BrixBroker (`docs/adr/0039-...md:64-66`) |
 | T4 | Root: Sonnet 5.5 em effort medium; Opus ou effort high em slices difíceis | owner, 2026-10-15 |
-| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `opus`/high; verifier `sonnet`/medium; architect `opus`/high → `fable`/high | recomendação Anthropic aceita na conversa |
+| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `opus`/high; verifier `sonnet`/medium; architect `opus`/high → `opus`/xhigh (Opus é o teto; Fable proibido) | recomendação Anthropic + owner, 2026-10-15 |
 | T6 | Os nomes das skills não mudam (`/plan-task`, `/revise`...), porque o ADR-0039 e os hábitos do owner os citam | ADR-0039 |
 
 ## Decisões abertas (com recomendação)
@@ -41,7 +41,7 @@ As skills dizem **o que** precisa ser independente. O `CLAUDE.md` diz **quem** f
 - O **reviewer** entra uma vez por entrega, com contexto limpo, sobre o diff integrado e o plano. Reporta só achados que afetam correção ou requisitos.
 - O **verifier** roda o gate final contra o commit exato e devolve a evidência, sem consertar nada.
 - O **implementer** só é usado em slices paralelos com write-sets disjuntos, cada um com `isolation: worktree`.
-- O **architect_escalation** é chamado para decisão de arquitetura ou de spec que a root não consegue resolver com evidência. Sobe para Fable só com um pacote de insuficiência.
+- O **architect_escalation** é chamado para decisão de arquitetura ou de spec que a root não consegue resolver com evidência. Sobe para effort xhigh, ainda em Opus, só com um pacote de insuficiência; Fable nunca é usado.
 - Não usar subagente para o que cabe em poucas chamadas de ferramenta.
 
 ## Estrutura alvo

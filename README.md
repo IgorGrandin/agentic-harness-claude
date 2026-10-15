@@ -26,7 +26,7 @@ maior parte do trabalho. Para slices difíceis, use `/effort high` ou `/model op
 | implementer | `sonnet` | medium | Não abre subagentes; usado com `isolation: worktree` |
 | reviewer | `opus` | high | Não edita |
 | verifier | `sonnet` | medium | Não edita |
-| architect_escalation | `opus` (depois `fable`) | high | Não edita; só decide |
+| architect_escalation | `opus` (teto: Opus; nunca Fable) | high, depois xhigh | Não edita; só decide |
 
 Os modelos usam aliases, então acompanham a versão mais nova de cada família.
 Não defina `CLAUDE_CODE_EFFORT_LEVEL` no ambiente: essa variável sobrepõe o
