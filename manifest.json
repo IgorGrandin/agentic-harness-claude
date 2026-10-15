@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "agentic-harness-claude",
+  "instructions": "CLAUDE.md",
+  "agents": ["scout", "implementer", "reviewer", "verifier", "architect_escalation"],
+  "skills": [
+    "audit-task",
+    "brainstorming",
+    "change-task",
+    "domain-modeling",
+    "execute",
+    "grilling",
+    "handoff",
+    "plan-for-cursor",
+    "plan-task",
+    "repo-aware-architecture",
+    "review-pr",
+    "revise",
+    "revise-and-deploy",
+    "sdd-workflow",
+    "spec-task",
+    "systematic-debugging",
+    "takeover"
+  ]
+}

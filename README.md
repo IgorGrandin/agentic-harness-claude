@@ -13,7 +13,8 @@ O plano de construção e as decisões estão em
 |---|---|---|
 | `CLAUDE.md` | `CLAUDE.md` | Regras globais: evidência, permissões, memória e política de delegação |
 | `agents/*.md` | `agents/` | Subagentes `scout`, `implementer`, `reviewer`, `verifier` e `architect_escalation` |
-| `skills/<nome>/` | `skills/<nome>/` | Skills (a partir do S2) |
+| `skills/<nome>/` | `skills/<nome>/` | As 17 skills listadas em `manifest.json` |
+| `manifest.json` | — | Lista explícita do que o instalador gerencia |
 
 ## Modelos
 
@@ -34,11 +35,44 @@ effort de cada agente.
 
 ## Instalar e reverter
 
-O instalador (`scripts/install.ps1`) e o verify entram no S6. Até lá, nada deste
-repositório é copiado para `~/.claude`.
+Antes de instalar, valide o repositório:
 
-O instalador vai gerenciar só o `CLAUDE.md`, os 5 agentes e as skills listadas.
-Ele não toca `settings.json`, `projects/`, `sessions/`, `brixbroker/` nem
-plugins. Antes de sobrescrever qualquer arquivo, faz backup em
-`~/.claude/portable-backups/<timestamp>/`. Para reverter, basta restaurar esse
-backup.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1 -RunTests
+```
+
+Para ver o que mudaria sem alterar nada:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -WhatIf
+```
+
+Para instalar:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
+```
+
+O instalador gerencia só o que o `manifest.json` lista: o `CLAUDE.md`, os 5
+agentes e as 17 skills. Cada skill é substituída por inteiro, então arquivos
+deixados por um harness anterior não sobrevivem. Ele não toca `settings.json`,
+`projects/`, `sessions/`, `brixbroker/`, plugins nem skills fora da lista.
+
+Antes de substituir qualquer item, faz backup em
+`~/.claude/portable-backups/<timestamp>/`. Para reverter, copie o conteúdo
+desse backup de volta para `~/.claude/` e reinicie o Claude Code.
+
+## Validação
+
+O `scripts/verify.ps1` confere o contrato do repositório:
+- **manifesto:** bate com as pastas;
+- **AC1:** nenhuma mecânica do Codex nas instruções;
+- **AC2:** as skills de fluxo continuam de invocação manual;
+- **AC4:** modelo, effort e restrições de cada agente; Fable proibido;
+- **AC5:** o `CLAUDE.md` tem no máximo 600 palavras e as 7 regras de delegação;
+- **AC7:** o contrato de cobertura tem uma fonte só;
+- **links:** nenhum link quebrado.
+
+Com `-RunTests`, roda também os testes de `tests/`:
+- os resolvers e as métricas do `/execute`;
+- o instalador, num `~/.claude` temporário.
