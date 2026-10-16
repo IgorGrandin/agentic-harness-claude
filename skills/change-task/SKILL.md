@@ -33,12 +33,13 @@ Use `/change-task <WI-number|spec-path|plan-path>` with the requested change to 
   - Identify added, changed, superseded, and reopened ACs, with the rationale for each.
   - Include before/after behavior, scope, non-goals, affected consumers and state, the applicable contract, transaction, concurrency and retry risks, and unresolved decisions.
 - **Limit external writes:**
-  - Do not update the canonical spec or the Azure Boards item until the owner approves the wording through the batched request and the user separately authorizes that write.
+  - Do not update the canonical spec's content (ACs, scope) or the Azure Boards description until the owner approves the wording through the batched request and the user separately authorizes that write.
+  - The "Decisões" section of the Work Item and of the mirror `backlog/tasks` file is the exception. With the user's authorization, record every delta decision there (user and owner-class, pending included), following the owner-approval contract, with stable IDs that continue the existing numbering.
   - Do not create a WI by default. If governance requires one, stop and explain why.
 
 ## Build the new plan
 
-After the delta is accepted, write a new plan in the format `/execute` consumes. The user accepts the delta. Each owner-class item is either approved by the owner or pre-approved by the user and recorded in the plan's Decisions as `pendente do owner`, using the states of the owner-approval contract. On the user's request, open a draft PR with the committed plan and the approval table, and update the states in a new commit when the owner answers.
+After the delta is accepted, write a new plan in the format `/execute` consumes. The user accepts the delta. Each owner-class item is either approved by the owner or pre-approved by the user and recorded as `pendente do owner` in the Work Item's "Decisões" section, which is the source of truth (the mirror copies it). The plan's "Decisões (não reabrir)" may copy the decisions that bind the executor, with their IDs; on divergence, the Work Item wins. On the user's request, open a draft PR with the committed plan, the mirror, and the approval table. When the owner answers, update the states in the Work Item and the mirror (a new commit) and adjust the plan if a decision changed.
 
 Preserve the original spec, plan, statuses, and history. Record:
 - the canonical spec and parent-plan links;

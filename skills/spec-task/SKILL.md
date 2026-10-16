@@ -16,7 +16,7 @@ Levantar o conteúdo (passo 1) e resolver conflitos de arquitetura (passo 2) seg
 - **Sempre traga uma recomendação.** Para cada pergunta, já venha com sua resposta sugerida (e o porquê) — quem decide não parte do zero.
 - **Fato é seu trabalho; decisão é do usuário ou do owner, conforme o contrato.** Se algo pode ser respondido explorando o código/docs (ex.: "esse guard já existe?", "esse campo já é real ou mock?"), vá lá e descubra — não pergunte. Só vire pergunta o que é genuinamente uma escolha (trade-off, prioridade, corte de escopo).
 - **Percorra a árvore de dependências.** Resolva uma decisão por vez, na ordem em que uma depende da outra — não pule pra uma decisão que depende de uma resposta ainda em aberto.
-- **Não finalize sem entendimento compartilhado.** Só execute o passo 4 (criar Work Item + gravar o arquivo) depois que as perguntas abertas dos passos 1-2 estiverem resolvidas, o usuário tiver confirmado e cada decisão de classe owner estiver aprovada ou pré-aprovada pelo usuário. Uma pré-aprovada entra na seção "Decisões do owner" com o estado `pendente do owner`, conforme o contrato. Se um conflito de arquitetura aparecer no meio do caminho (passo 2), pare e resolva antes de continuar — não empurre a decisão pra dentro da spec como ressalva e siga em frente.
+- **Não finalize sem entendimento compartilhado.** Só execute o passo 4 (criar Work Item + gravar o arquivo) depois que as perguntas abertas dos passos 1-2 estiverem resolvidas, o usuário tiver confirmado e cada decisão de classe owner estiver aprovada ou pré-aprovada pelo usuário. Todas as decisões tomadas, as do usuário e as do owner, entram na seção "Decisões" da spec, conforme o contrato. Uma pré-aprovada entra com o estado `pendente do owner`. Se um conflito de arquitetura aparecer no meio do caminho (passo 2), pare e resolva antes de continuar — não empurre a decisão pra dentro da spec como ressalva e siga em frente.
 
 ## 1. Levantar o conteúdo com o usuário
 
@@ -82,9 +82,13 @@ Formato (idêntico nos dois lugares):
 ## Referências de arquitetura
 {ADRs e rules aplicáveis, com link relativo}
 
-## Decisões do owner
-{só quando houver: uma linha por decisão, com o estado do contrato de aprovação}
+## Decisões
+| ID | Decisão | Classe | Estado |
+|---|---|---|---|
+{todas as decisões tomadas na especificação, as do usuário e as do owner, no formato do contrato de aprovação}
 ```
+
+A seção "Decisões" é o registro exclusivo das decisões da task, por pedido do owner. O Work Item é a fonte de verdade e de consulta dessa seção; o espelho e os planos são cópias que citam o ID (`D1`, `D2`…), e em divergência vale o Work Item.
 
 **Submissão ao owner.** Com qualquer decisão `pendente do owner`, a spec pode ser criada no board, mas fica **sem responsável** até a aprovação (contrato de aprovação). Por pedido do usuário, submeta por um destes canais:
 - **Comentário na WI**, com a tabela do pedido de aprovação;

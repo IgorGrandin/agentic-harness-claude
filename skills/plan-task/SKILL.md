@@ -83,7 +83,7 @@ Qualquer ponto em que a certeza fique abaixo de **95%** trava a gravação do pl
 - **Sempre com recomendação.** Traga sua resposta sugerida e o porquê; quem decide não parte do zero.
 - **Fato é seu trabalho; decisão é do usuário ou do owner, conforme o contrato.** "Esse campo já existe?", "esse guard já está implementado?", "essa rule proíbe isso?" — vá ao código, à rule, ao ADR e descubra. Só vira pergunta o que é escolha genuína: trade-off, prioridade, corte de escopo, conflito com decisão anterior.
 - **Percorra a árvore de dependências.** Não pule para uma decisão que depende de resposta ainda aberta.
-- **Não grave o plano antes de fechar tudo.** Empurrar a dúvida para uma seção "perguntas em aberto" é o mesmo que mandar o Cursor improvisar. A única exceção é a decisão de classe owner que o usuário pré-aprovou. Ela entra na seção "Decisões" com o estado `pendente do owner`, conforme o contrato, e o plano só fica executável depois da aprovação.
+- **Não grave o plano antes de fechar tudo.** Empurrar a dúvida para uma seção "perguntas em aberto" é o mesmo que mandar o Cursor improvisar. A única exceção é a decisão de classe owner que o usuário pré-aprovou. Ela é registrada na seção "Decisões" do Work Item e do espelho `backlog/tasks` com o estado `pendente do owner`, conforme o contrato. O plano só fica executável depois da aprovação.
 
 Gatilhos típicos de "<95%" nesta casa — se algum aparecer, é pergunta, não suposição:
 
@@ -122,7 +122,7 @@ isProject: false
 Corpo, na ordem:
 
 1. **Fonte canônica** — link para `backlog/tasks/<id>-<slug>.md` e para os ADRs aplicáveis, dizendo **quem vence onde divergirem** (a spec vence o ADR quando o ADR ficou para trás; diga isso explicitamente, como no plano da 2538).
-2. **Decisões (não reabrir)** — o que foi fechado no §4, uma linha cada, com o porquê. Cada decisão de classe owner leva um dos estados do contrato de aprovação (`pré-aprovado pelo usuário … — pendente do owner`, `aprovado pelo owner …`, com ajuste ou rejeitado). É o que impede o Cursor de "melhorar" a decisão.
+2. **Decisões (não reabrir)** — o conteúdo do que foi fechado no §4, uma linha cada, com o porquê e o ID da decisão (`D1`, `D2`…) na seção "Decisões" do Work Item. É uma cópia para a execução: o Work Item é a fonte de verdade e de consulta das decisões, e em divergência vale ele (contrato de aprovação). É o que impede o Cursor de "melhorar" a decisão.
 3. **Arquitetura** — o desenho; diagrama quando o fluxo tiver mais de dois saltos.
 3a. **Manifesto de execução** — obrigatório. O formato vem de `.cursor/commands/execute.md`, e as regras de preenchimento estão na seção "Manifesto de execução" da `plan-for-cursor`. O SHA-base é o `HEAD` na hora de commitar o plano.
 3b. **Matriz de cobertura** — montada **antes** das fatias, no formato do contrato de cobertura da `plan-for-cursor` (passe 11, `references/coverage-contract.md`): AC → comportamento → resultado esperado → fronteira de produção → teste → discriminante, mais as dimensões de risco aplicáveis e excluídas. O desafio do `reviewer` sobre a matriz faz parte do passe 11; não peça um segundo.
@@ -143,9 +143,9 @@ Duas fronteiras que o plano precisa dizer em voz alta, porque o Cursor erra nela
 O plano só existe de verdade depois de commitado: plano não commitado é sobrescrito pelo primeiro `git merge` e some sem aviso (`plan-for-cursor` §7).
 
 1. **Confira a branch corrente.** `master` **não aceita push direto** (TF402455) e nem deve receber o plano: crie `feature/wi-<id>-<slug>` a partir dela — é o nome que habilita a rastreabilidade que o `/audit-task` usa depois. Se já estiver numa branch de trabalho, commite nela.
-2. **Commite** o `.cursor/plans/*.plan.md` e, quando materializado, o `backlog/tasks/<id>-<slug>.md`. Nada mais entra nesse commit: edição de harness, skill, hook ou doc de governança vai em **branch separada**, mesmo que feita nesta sessão.
+2. **Registre as decisões e commite.** Com a autorização do usuário, grave a seção "Decisões" no Work Item e no espelho `backlog/tasks/<id>-<slug>.md`. Depois commite o `.cursor/plans/*.plan.md` e o `backlog/tasks/<id>-<slug>.md`, materializado ou atualizado. Nada mais entra nesse commit: edição de harness, skill, hook ou doc de governança vai em **branch separada**, mesmo que feita nesta sessão.
 3. **Não faça push nem abra PR por iniciativa própria** — pergunte. Se o usuário pedir, confirme depois com `git log` local × `origin/<branch>` que o push realmente saiu.
-4. **PR para o owner (só com pedido do usuário).** Quando o plano tiver decisões `pendente do owner`, o usuário pode pedir um PR em rascunho para o owner analisar. O PR leva só o plano commitado (e o `backlog/tasks` materializado), e a descrição traz a tabela do pedido de aprovação com a escolha do usuário em cada item. Quando o owner responder, atualize os estados em commit novo, antes de qualquer execução.
+4. **PR para o owner (só com pedido do usuário).** Quando houver decisões `pendente do owner`, o usuário pode pedir um PR em rascunho para o owner analisar. O PR leva o plano e o espelho `backlog/tasks` commitados, e a descrição traz a tabela do pedido de aprovação com a escolha do usuário em cada item. Quando o owner responder, atualize os estados no Work Item e no espelho (commit novo) e ajuste o plano se alguma decisão mudar, tudo antes de qualquer execução.
 
 ---
 

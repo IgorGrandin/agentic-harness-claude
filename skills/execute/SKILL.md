@@ -69,7 +69,13 @@ Handle each outcome:
 
 Confirm the plan file is committed. If it is not, stop: only committed plans are executable.
 
-Read the plan's "Decisões" section. If any decision is marked `pendente do owner` (the owner-approval contract of `plan-task`), stop and list the pending items: the plan waits for the owner's approval. A `rejeitado` or `com ajuste` decision whose consequences the plan does not yet reflect also stops the run.
+Consult the "Decisões" section **in the Work Item itself**, through the `azure-devops` MCP or the `az rest` fallback in `plan-task` §1. Under the owner-approval contract of `plan-task`, the Work Item is the source of truth for decisions; the plan and the mirror `backlog/tasks` file are copies. Stop and list the items in either case:
+- any decision is marked `pendente do owner`: the plan waits for the owner's approval;
+- the plan's "Decisões (não reabrir)" diverges from the Work Item: for example, a `rejeitado` or `com ajuste` decision the plan does not reflect.
+
+If the mirror diverges from the Work Item, report it; the Work Item wins, and the mirror is corrected in its own commit.
+
+If the Work Item cannot be read, stop and tell the user. Use the mirror as a substitute only with their authorization, and record in the report that the decisions were not checked against the Work Item. If the Work Item has no "Decisões" section, say so in the summary and continue: there is no registered decision to check.
 
 ## 2. Preflight and coverage
 
@@ -117,13 +123,16 @@ When a finding needs an owner-class decision (classes in the owner-approval cont
 
 1. **Stop the slices that depend on it.** Never implement on top of a pending owner decision; the repository's `execute.md` says the same.
 2. **Bring the options and your recommendation to the user** and let them pre-approve one.
-3. **Record it in the plan's "Decisões"** as `pré-aprovado pelo usuário em <data> — pendente do owner`.
+3. **Record it in the "Decisões" section of the Work Item and of the mirror `backlog/tasks` file** (with the user's authorization for the Work Item write) as `pré-aprovado pelo usuário em <data> — pendente do owner`, with the next decision ID. Never in the plan. Commit the mirror on its own, staging only that file, so the uncommitted slice work stays out of the commit.
 4. **Continue only the independent slices**, up to their focused checks. Do not commit or gate an incomplete delivery.
 5. **End the run with two reports:**
    - the partial execution report, listing the completed slices, the blocked slices, and the reason;
    - the approval report for the owner, using the contract's table: options, the user's choice, your recommendation, impact, and what is blocked.
 
-After the owner answers, record the outcome in the plan (a new commit). Then rerun `/execute` with the explicit plan path to resume only the pending slices.
+After the owner answers:
+1. Record the outcome in the Work Item and the mirror (a new commit).
+2. Add the decision's content to the plan's "Decisões (não reabrir)", with its ID and no approval state.
+3. Rerun `/execute` with the explicit plan path to resume only the pending slices.
 
 ## 5. Integration review (before commit)
 

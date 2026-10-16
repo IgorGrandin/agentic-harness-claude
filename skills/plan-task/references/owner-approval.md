@@ -42,19 +42,40 @@ Fato não é decisão de ninguém: o que se responde lendo código, rules ou ADR
    |---|---|---|---|---|---|
    ```
 
-3. **Pré-aprovação do usuário (opcional).** O usuário pode escolher, para cada item, a opção que vai submeter ao owner. Com isso, você grava o artefato (plano, spec ou delta) com a escolha dele e a marca de pendência, em vez de esperar.
+3. **Pré-aprovação do usuário (opcional).** O usuário pode escolher, para cada item, a opção que vai submeter ao owner. Com isso, você registra a decisão com a escolha dele e a marca de pendência, em vez de esperar.
 4. **Submissão ao owner.** O usuário leva o pedido ao owner por um destes canais:
    - **Conversa:** ele volta com a resposta por item.
-   - **PR em rascunho:** só quando o usuário pedir. O PR leva o artefato commitado e, na descrição, a tabela de decisões pendentes. O owner aprova ou comenta no PR, e você consegue ler a aprovação e os comentários no Azure DevOps.
-   - **Work Item:** um comentário com a tabela, para decisões de spec. O owner responde ali.
-5. **Registre o estado** de cada decisão na seção "Decisões" do artefato, usando exatamente um destes:
-   - `pré-aprovado pelo usuário em <data> — pendente do owner`
-   - `aprovado pelo owner em <data>, via <canal>` (exemplos de canal: `conversa relatada pelo usuário`, `PR #123`, `comentário na WI #456`)
-   - `aprovado pelo owner com ajuste em <data>, via <canal>: <o ajuste>`
-   - `rejeitado pelo owner em <data>, via <canal>`
+   - **PR em rascunho:** só quando o usuário pedir. O PR leva o espelho `backlog/tasks` (com a seção "Decisões") e o plano, quando houver, commitados, e a tabela de decisões pendentes na descrição. O owner aprova ou comenta no PR, e você consegue ler a aprovação e os comentários no Azure DevOps.
+   - **Work Item:** um comentário com a tabela. O owner responde ali.
 
-   A atualização de estado é um commit novo no artefato.
+## Onde fica o registro (pedido do owner, 2026-10-16)
 
-**Pendência bloqueia execução.** Plano ou delta com qualquer decisão `pendente do owner` não é executável: o `/execute` recusa. Spec com decisão pendente não é atribuída a um dev; ela pode existir no board, mas fica sem responsável até a aprovação.
+**Todas as decisões da task**, as do usuário e as de classe owner, ficam numa seção exclusiva **"Decisões"** do Work Item. **O Work Item é a fonte de verdade e de consulta dessa seção**, por decisão do owner. Isso é uma exceção ao ADR-0039, que trata o arquivo do repo como fonte para o resto da spec.
 
-Uma decisão rejeitada ou aprovada com ajuste pode reabrir perguntas do usuário que dependiam dela. Volte ao passo 1 só para elas e corrija o artefato.
+A mesma seção é copiada no arquivo espelho `backlog/tasks/<id>-<slug>.md` para manter a spec idêntica nos dois lugares. Em divergência, vale o Work Item, e o espelho é corrigido.
+
+Formato, igual nos dois lugares:
+
+```markdown
+## Decisões
+| ID | Decisão | Classe | Estado |
+|---|---|---|---|
+| D1 | <o que foi decidido e por quê> | usuário | decidido pelo usuário em <data> |
+| D2 | <...> | owner | pré-aprovado pelo usuário em <data> — pendente do owner |
+```
+
+O estado de uma decisão de classe owner é exatamente um destes:
+- `pré-aprovado pelo usuário em <data> — pendente do owner`
+- `aprovado pelo owner em <data>, via <canal>` (exemplos de canal: `conversa relatada pelo usuário`, `PR #123`, `comentário na WI #456`)
+- `aprovado pelo owner com ajuste em <data>, via <canal>: <o ajuste>`
+- `rejeitado pelo owner em <data>, via <canal>`
+
+Os IDs (`D1`, `D2`…) são estáveis: uma decisão revista mantém o ID e troca o estado. Toda gravação no Work Item é uma escrita externa, feita só com a autorização do usuário, em lote por rodada. O espelho é atualizado em commit próprio, junto com a WI.
+
+**O plano** pode conter as decisões e restrições que valem para quem executa, na seção "Decisões (não reabrir)", citando o ID (`D2`) e o Work Item. É uma cópia para a execução: em divergência, vale o Work Item, e o plano é corrigido. Decisão rejeitada não entra; decisão com ajuste entra já ajustada.
+
+**Consulta.** Antes de decidir com base numa decisão registrada (executar um plano, auditar, planejar um delta), consulte a seção "Decisões" no próprio Work Item, pelo MCP `azure-devops` ou pelo fallback `az rest` do §1 do `plan-task`. Se o Work Item não puder ser lido, avise o usuário e só use o espelho como substituto com a autorização dele, deixando registrado que a consulta não foi ao Work Item.
+
+**Pendência bloqueia execução.** Se a seção "Decisões" do Work Item tiver qualquer `pendente do owner`, o plano ligado à task não é executável: o `/execute` recusa. Spec com decisão pendente não é atribuída a um dev; ela pode existir no board, mas fica sem responsável até a aprovação.
+
+Uma decisão rejeitada ou aprovada com ajuste pode reabrir perguntas do usuário que dependiam dela. Volte ao passo 1 só para elas e corrija a WI, o espelho e o plano.

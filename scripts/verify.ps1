@@ -110,6 +110,8 @@ $executeText = Read-Text (Join-Path $root 'skills/execute/SKILL.md')
 if (-not $executeText.Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }
 # An owner decision that appears mid-run stops dependent slices and ends with the owner report.
 if (-not $executeText.Contains('### Owner decision during execution')) { Fail '/execute lacks the mid-run owner-decision step' }
+# Decisions are consulted in the Work Item, the owner's source of truth, not in the plan or mirror.
+if (-not $executeText.Contains('in the Work Item itself')) { Fail '/execute does not consult decisions in the Work Item' }
 
 # Relative Markdown links resolve, and none climbs out of the skill tree.
 foreach ($file in Get-ChildItem (Join-Path $root 'skills'), (Join-Path $root 'agents') -Recurse -File -Filter '*.md') {
