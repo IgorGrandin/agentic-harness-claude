@@ -35,12 +35,16 @@ Fato não é decisão de ninguém: o que se responde lendo código, rules ou ADR
    ```markdown
    # Pedido de aprovação — <WI/tema>
 
-   Contexto: <2-3 frases>
+   Contexto: <2-3 frases para quem não conhece a task>
    Bloqueia: <o que não avança sem a resposta>
 
    | # | Decisão | Opções | Recomendação e porquê | Escolha do usuário | Impacto |
    |---|---|---|---|---|---|
+
+   <um bloco por decisão, no formato de "Onde fica o registro" abaixo>
    ```
+
+   O pedido segue a mesma regra do registro: cada item tem de se explicar sozinho para o owner, sem a conversa.
 
 3. **Pré-aprovação do usuário (opcional).** O usuário pode escolher, para cada item, a opção que vai submeter ao owner. Com isso, você registra a decisão com a escolha dele e a marca de pendência, em vez de esperar.
 4. **Submissão ao owner.** O usuário leva o pedido ao owner por um destes canais:
@@ -58,11 +62,28 @@ Formato, igual nos dois lugares:
 
 ```markdown
 ## Decisões
-| ID | Decisão | Classe | Estado |
+| ID | Resumo | Classe | Estado |
 |---|---|---|---|
-| D1 | <o que foi decidido e por quê> | usuário | decidido pelo usuário em <data> |
+| D1 | <uma frase que diga o que muda> | usuário | decidido pelo usuário em <data> |
 | D2 | <...> | owner | pré-aprovado pelo usuário em <data> — pendente do owner |
+
+### D1 — <título>
+- **Problema:** o que acontece hoje e por que exige uma decisão. Explique os termos do domínio que aparecem (ex.: o que é um template "somente leitura").
+- **Decisão:** o que muda, de forma concreta.
+- **Motivo:** por que esta opção.
+- **Alternativas descartadas:** só para decisões de classe owner; uma linha cada, com o porquê.
+- **Impacto e dependências:** o que a decisão afeta (outras WIs, contratos, testes) e os conflitos com outras decisões, inclusive conflitos que ainda não têm decisão.
+- **Incertezas:** o que não foi confirmado, marcado como tal, e se a decisão depende disso. Escreva "nenhuma" quando não houver.
 ```
+
+**Cada decisão tem de se explicar sozinha.** Escreva-a para um leitor que não viu a conversa nem o plano, como o owner lendo o Work Item ou outro dev semanas depois:
+- explique os termos do domínio;
+- não use apelidos internos nem nomes criados durante a sessão;
+- não remeta a "conforme discutido" ou "ver plano".
+
+A tabela é o índice, e o detalhe de cada decisão fica no bloco abaixo dela. Uma decisão revista mantém o ID e atualiza o bloco.
+
+Antes de gravar, releia cada bloco como esse leitor e confirme que ele entende o problema, a decisão e o motivo sem abrir mais nada. Se o bloco depender de um fato do plano, confira o fato no código ou na spec. Assim a decisão não herda em silêncio um erro do plano.
 
 O estado de uma decisão de classe owner é exatamente um destes:
 - `pré-aprovado pelo usuário em <data> — pendente do owner`

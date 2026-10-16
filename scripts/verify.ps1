@@ -105,6 +105,11 @@ if ($approvalHolders.Count -ne 1) { Fail "Owner-approval contract anchor found i
 foreach ($name in @('plan-task', 'spec-task', 'change-task')) {
     if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('owner-approval.md')) { Fail "$name does not reference the owner-approval contract" }
 }
+# Each recorded decision must be self-explanatory: the contract keeps the per-decision block fields.
+$approvalText = Read-Text (Join-Path $root 'skills/plan-task/references/owner-approval.md')
+foreach ($field in @('**Problema:**', '**Motivo:**', '**Incertezas:**')) {
+    if (-not $approvalText.Contains($field)) { Fail "Owner-approval contract lost the decision block field $field" }
+}
 # A plan with a decision still pending the owner must not be executable.
 $executeText = Read-Text (Join-Path $root 'skills/execute/SKILL.md')
 if (-not $executeText.Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }

@@ -83,9 +83,9 @@ Formato (idêntico nos dois lugares):
 {ADRs e rules aplicáveis, com link relativo}
 
 ## Decisões
-| ID | Decisão | Classe | Estado |
+| ID | Resumo | Classe | Estado |
 |---|---|---|---|
-{todas as decisões tomadas na especificação, as do usuário e as do owner, no formato do contrato de aprovação}
+{índice de todas as decisões da especificação, as do usuário e as do owner; abaixo da tabela, um bloco autoexplicativo por decisão (problema, decisão, motivo, alternativas, impacto, incertezas), no formato do contrato de aprovação}
 ```
 
 A seção "Decisões" é o registro exclusivo das decisões da task, por pedido do owner. O Work Item é a fonte de verdade e de consulta dessa seção; o espelho e os planos são cópias que citam o ID (`D1`, `D2`…), e em divergência vale o Work Item.
