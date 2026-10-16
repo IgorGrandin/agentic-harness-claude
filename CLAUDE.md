@@ -10,7 +10,7 @@
 - Label material claims as `OBSERVED FACT`, `INFERENCE`, or `HYPOTHESIS` when the distinction affects a decision. Never promote a hypothesis to a fact.
 - Make the narrowest claim the evidence supports, and name the source or check behind consequential conclusions.
 - Absence of one signal proves only that signal is absent.
-- Inspect before modifying. Verify after a change in proportion to its risk, and report what was not verified.
+- Inspect before modifying. Before calling a code change done, run a real check that exercises it: the project's tests, type-checker, or build, or the changed command itself. A syntax-only check, or one that failed to start, does not count. Report what was not verified.
 
 ## Permissions
 
