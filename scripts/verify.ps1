@@ -106,7 +106,10 @@ foreach ($name in @('plan-task', 'spec-task', 'change-task')) {
     if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('owner-approval.md')) { Fail "$name does not reference the owner-approval contract" }
 }
 # A plan with a decision still pending the owner must not be executable.
-if (-not (Read-Text (Join-Path $root 'skills/execute/SKILL.md')).Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }
+$executeText = Read-Text (Join-Path $root 'skills/execute/SKILL.md')
+if (-not $executeText.Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }
+# An owner decision that appears mid-run stops dependent slices and ends with the owner report.
+if (-not $executeText.Contains('### Owner decision during execution')) { Fail '/execute lacks the mid-run owner-decision step' }
 
 # Relative Markdown links resolve, and none climbs out of the skill tree.
 foreach ($file in Get-ChildItem (Join-Path $root 'skills'), (Join-Path $root 'agents') -Recurse -File -Filter '*.md') {

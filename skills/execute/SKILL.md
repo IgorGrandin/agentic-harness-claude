@@ -109,7 +109,21 @@ For each slice:
 
 Update slice status serially, using only the vocabulary the plan already supports: `in_progress` before starting, `completed` after the integration review passes. The plan's gate todo stays pending after a successful gate; the external report records the gate. A tracked post-gate edit would change the delivered tree.
 
-If the same failure survives two correction attempts, or the code contradicts the plan, stop the dependent slices and take it to the owner. Do not silently change scope.
+If the same failure survives two correction attempts, or the code contradicts the plan, stop the dependent slices and take it to the user. Do not silently change scope.
+
+### Owner decision during execution
+
+When a finding needs an owner-class decision (classes in the owner-approval contract of `plan-task`: ADR, scope or release, product or public contract, fixed cost, governance), handle it like this:
+
+1. **Stop the slices that depend on it.** Never implement on top of a pending owner decision; the repository's `execute.md` says the same.
+2. **Bring the options and your recommendation to the user** and let them pre-approve one.
+3. **Record it in the plan's "Decisões"** as `pré-aprovado pelo usuário em <data> — pendente do owner`.
+4. **Continue only the independent slices**, up to their focused checks. Do not commit or gate an incomplete delivery.
+5. **End the run with two reports:**
+   - the partial execution report, listing the completed slices, the blocked slices, and the reason;
+   - the approval report for the owner, using the contract's table: options, the user's choice, your recommendation, impact, and what is blocked.
+
+After the owner answers, record the outcome in the plan (a new commit). Then rerun `/execute` with the explicit plan path to resume only the pending slices.
 
 ## 5. Integration review (before commit)
 
