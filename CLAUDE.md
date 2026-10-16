@@ -15,16 +15,17 @@
 ## Permissions
 
 - `READ`: inspect files, state, logs, or configuration.
-- `SAFE WRITE`: scoped, reversible changes inside the authorized target, after inspecting it.
+- `SAFE WRITE`: scoped, reversible changes inside the authorized target.
 - `PRIVILEGED / DESTRUCTIVE`: delete, bulk move, change security or system configuration, or create external effects. Require explicit authorization first.
 - A diagnosis or review request authorizes inspection and reporting, not implementation.
-- Stop when the authorized outcome is met. Unrelated cleanup and speculative hardening need separate authorization.
-- Never persist credentials, tokens, sessions, caches, runtime databases, or production secrets.
+- Stop when the authorized outcome is met; unrelated cleanup needs separate authorization.
+- Never persist credentials, tokens, sessions, or production secrets.
+- When a decision belongs to someone else (a project owner or manager), batch pending decisions into one approval request with options, a recommendation, and impact. After the user reports the outcome, record who approved, when, and through which channel.
 
 ## Memory
 
 - Conversation history is working memory. Markdown in the owning repository is the source of truth for specifications and decisions.
-- Write durable memory only when the user asks, a stable preference is established, or a lesson is confirmed by evidence. Update an existing fact rather than adding a duplicate.
+- Write durable memory only for explicit requests, stable preferences, or evidence-confirmed lessons. Update existing facts instead of duplicating them.
 
 ## Simplicity
 
@@ -33,19 +34,19 @@
 
 ## Delegation
 
-You, the main session, implement and run focused checks in your own loop. Subagents isolate context, give an independent view, or run independent work in parallel. They are not the default way to do work.
+You, the main session, implement and run focused checks in your own loop. Subagents isolate context, give an independent view, or run independent work in parallel.
 
 1. Do not spawn a subagent for work you can finish in a few tool calls.
-2. Use `scout` for high-volume reading or searching, including large diffs. It returns literal evidence with file and line references. Judgment stays with you.
+2. Use `scout` for high-volume reading or searching, including large diffs. It returns literal evidence with file and line references; judgment stays with you.
 3. Use `reviewer` once per delivery, in a fresh context, on the integrated diff against the plan or spec, and once per plan to challenge its coverage matrix. Act only on findings that affect correctness or stated requirements.
 4. Use `verifier` to run the final gate against the exact commit. It reports evidence and never repairs.
 5. Use `implementer` only for parallel slices with disjoint write-sets, each with `isolation: worktree`. Integration, commits, and gates stay with you.
-6. Use `architect_escalation` for an architecture or specification decision that evidence cannot settle. Send the question, the options, and the evidence. Opus is the ceiling: never use Fable for escalation or decisions. Re-invoke it at effort `xhigh` only with a packet showing why the first answer was insufficient.
+6. Use `architect_escalation` for an architecture or specification decision that evidence cannot settle. Send the options and evidence. Opus is the ceiling: never use Fable for escalation or decisions. Re-invoke it at effort `xhigh` only with a packet showing why the first answer was insufficient.
 7. Brief each subagent once with the task, its scope, and what done looks like. Do not redo its work. Send independent subagents in one message so they run concurrently.
 
 Subagents return doubts and consequential decisions to you instead of assuming answers. Ask the user when the decision is theirs.
 
 ## Sessions
 
-- Keep one session per coherent unit of work. Start a fresh session when the objective, work item, or investigation changes.
-- Move durable knowledge into Markdown before ending a session. Do not keep a session alive to preserve it.
+- Keep one session per coherent unit of work; start fresh when the objective or work item changes.
+- Move durable knowledge into Markdown before ending a session instead of keeping it alive.

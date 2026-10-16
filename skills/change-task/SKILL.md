@@ -20,25 +20,25 @@ Use `/change-task <WI-number|spec-path|plan-path>` with the requested change to 
   - the affected production boundaries and consumers;
   - unresolved conflicts.
 - Separate facts from inferences. Do not infer added scope from a completed plan or adjacent code.
-- If the task identity, canonical spec, parent plan, or relevant evidence is ambiguous or materially inconsistent, present the evidence and ask the owner before planning.
+- If the task identity, canonical spec, parent plan, or relevant evidence is ambiguous or materially inconsistent, present the evidence and ask the user before planning.
 
 ## Resolve and approve the delta
 
-- **Clarify with `grilling`:** go through the changed behavior, acceptance criteria, boundaries, and exceptions one owner decision at a time. Bring repository evidence and a recommendation. Reuse approved decisions unless this delta reopens them.
+- **Clarify with `grilling` and the owner-approval contract** (skill `plan-task`, `references/owner-approval.md`): go through the changed behavior, acceptance criteria, boundaries, and exceptions one user decision at a time, and batch owner-class decisions (scope, public contract, release, ADR) into one approval request. Bring repository evidence and a recommendation. Reuse approved decisions unless this delta reopens them.
 - **Use `domain-modeling` only when needed:** only when the delta changes terminology, domain invariants, responsibilities, or architecture. Test those choices against the glossary, the code, and concrete scenarios.
   - Do not force an ADR for local fixes or UI-only changes.
   - Do not decide an ADR or write the glossary or ADR as a side effect. Present any proposed change for owner agreement and separate authorization.
-- **Draft the delta for owner review** before treating it as approved:
+- **Draft the delta for review** before treating it as approved. The user accepts it; its owner-class items need the owner's approval through the batched request:
   - Preserve every still-applicable original AC.
   - Identify added, changed, superseded, and reopened ACs, with the rationale for each.
   - Include before/after behavior, scope, non-goals, affected consumers and state, the applicable contract, transaction, concurrency and retry risks, and unresolved decisions.
 - **Limit external writes:**
-  - Do not update the canonical spec or the Azure Boards item until the owner accepts the wording and separately authorizes that write.
+  - Do not update the canonical spec or the Azure Boards item until the owner approves the wording through the batched request and the user separately authorizes that write.
   - Do not create a WI by default. If governance requires one, stop and explain why.
 
 ## Build the new plan
 
-After the owner accepts the delta, write a new plan in the format `/execute` consumes. Preserve the original spec, plan, statuses, and history. Record:
+After the delta is accepted (by the user, and by the owner for owner-class items), write a new plan in the format `/execute` consumes. Preserve the original spec, plan, statuses, and history. Record:
 - the canonical spec and parent-plan links;
 - the baseline SHA and evidence sources;
 - all new slices as `pending`.
@@ -72,9 +72,9 @@ Return:
 - the accepted delta and the plan path;
 - the baseline and source evidence;
 - scope and non-goals;
-- owner decisions and authorizations;
+- user decisions and owner approvals, with who approved, when, and through which channel;
 - the reviewer's disposition;
 - verification limits;
 - the next action.
 
-State any owner decision that still blocks progress.
+State any pending decision or approval that still blocks progress.

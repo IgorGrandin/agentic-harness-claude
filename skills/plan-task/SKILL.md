@@ -1,6 +1,6 @@
 ---
 name: plan-task
-description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, resolve com o owner tudo que ficar abaixo de 95% de certeza e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Use quando o owner pedir "/plan-task <nº>".
+description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, resolve tudo que ficar abaixo de 95% de certeza com o usuário e, em lote, com o owner quando a decisão for dele e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Use quando o usuário pedir "/plan-task <nº>".
 argument-hint: "nº do Work Item do Azure Boards (ex.: 2538)"
 disable-model-invocation: true
 ---
@@ -42,10 +42,10 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 | `System.BoardColumn` | o estado real; `System.State = "Active"` também vale para Ready-to-work |
 | `relations` → `rel: "AttachedFile"` | anexo: GUID é o último segmento da `url`, nome em `attributes.name` |
 | `relations` → `Hierarchy-Reverse` / `Related` | leia ao menos título e objetivo das WIs ligadas — é onde mora o escopo vizinho que o plano não deve invadir |
-| `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o owner** antes de planejar do zero |
+| `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o usuário** antes de planejar do zero |
 | comentários | vêm em **HTML**; é comum a mudança de escopo mais recente estar ali, não na descrição |
 
-**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao owner — não planeje por cima do buraco.
+**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao usuário — não planeje por cima do buraco.
 
 ---
 
@@ -54,10 +54,10 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 Por ADR-0039 (`docs/adr/0039-team-scaling-task-spec-and-review-workflow.md` no repo do projeto) §1 a spec vive em dois lugares, e **o arquivo do repo é a fonte**; a WI é a projeção.
 
 - **Arquivo existe e bate com a WI:** siga.
-- **Arquivo existe e diverge:** o arquivo vence — mas a divergência é **pergunta ao owner** (§4), não algo para resolver em silêncio. Divergência costuma significar que alguém editou a WI no board depois.
+- **Arquivo existe e diverge:** o arquivo vence — mas a divergência é **pergunta** (§4: ao usuário, ou ao owner se mudar escopo ou contrato), não algo para resolver em silêncio. Divergência costuma significar que alguém editou a WI no board depois.
 - **Arquivo não existe:** materialize `backlog/tasks/<id>-<slug>.md` a partir da WI, no formato do `/spec-task` §4 (Objetivo · Contexto · Escopo · Critérios de aceite · Área de impacto · Referências de arquitetura). Ele entra no mesmo commit do plano. Se a WI não tiver material para preencher **Critérios de aceite** ou **Área de impacto**, isso é lacuna — resolva com o owner antes de gravar, não invente para completar o formulário.
 
-Se a WI estiver em coluna **depois** de Ready-to-work e atribuída a outra pessoa, avise o owner antes de planejar: pode haver dev humano no meio.
+Se a WI estiver em coluna **depois** de Ready-to-work e atribuída a outra pessoa, avise o usuário antes de planejar: pode haver dev humano no meio.
 
 ---
 
@@ -78,9 +78,10 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 Qualquer ponto em que a certeza fique abaixo de **95%** trava a gravação do plano. Disciplina da skill `grilling`, igual ao `/spec-task` §0:
 
-- **Uma pergunta por vez.** Espere a resposta antes da próxima.
-- **Sempre com recomendação.** Traga sua resposta sugerida e o porquê; o owner decide, mas não parte do zero.
-- **Fato é seu trabalho, decisão é do owner.** "Esse campo já existe?", "esse guard já está implementado?", "essa rule proíbe isso?" — vá ao código, à rule, ao ADR e descubra. Só sobe ao owner o que é escolha genuína: trade-off, prioridade, corte de escopo, conflito com decisão anterior.
+- **Quem decide o quê:** siga o contrato de aprovação em [references/owner-approval.md](references/owner-approval.md). As perguntas do usuário vão uma por vez; as decisões de classe owner vão num único pedido de aprovação em lote.
+- **Uma pergunta por vez ao usuário.** Espere a resposta antes da próxima.
+- **Sempre com recomendação.** Traga sua resposta sugerida e o porquê; quem decide não parte do zero.
+- **Fato é seu trabalho; decisão é do usuário ou do owner, conforme o contrato.** "Esse campo já existe?", "esse guard já está implementado?", "essa rule proíbe isso?" — vá ao código, à rule, ao ADR e descubra. Só vira pergunta o que é escolha genuína: trade-off, prioridade, corte de escopo, conflito com decisão anterior.
 - **Percorra a árvore de dependências.** Não pule para uma decisão que depende de resposta ainda aberta.
 - **Não grave o plano antes de fechar tudo.** Empurrar a dúvida para uma seção "perguntas em aberto" é o mesmo que mandar o Cursor improvisar.
 
@@ -99,7 +100,7 @@ Gatilhos típicos de "<95%" nesta casa — se algum aparecer, é pergunta, não 
 
 **Antes de entregar, aplique a skill `plan-for-cursor` inteira** — os passes e a seção obrigatória de verificações. Ela é a régua de qualidade; não recrie nem resuma aqui.
 
-**Um arquivo por WI**, fatiado por dentro: `.cursor/plans/wi_<id>_<slug>.plan.md`. Só vire mais de um arquivo se a WI abrigar entregas genuinamente independentes — e nesse caso proponha o corte ao owner antes de gravar.
+**Um arquivo por WI**, fatiado por dentro: `.cursor/plans/wi_<id>_<slug>.plan.md`. Só vire mais de um arquivo se a WI abrigar entregas genuinamente independentes — e nesse caso proponha o corte ao usuário antes de gravar.
 
 Frontmatter no formato que o Cursor lê (modelo real: `.cursor/plans/wi_2538_bot_whatsapp_3416ef5e.plan.md`):
 
@@ -121,7 +122,7 @@ isProject: false
 Corpo, na ordem:
 
 1. **Fonte canônica** — link para `backlog/tasks/<id>-<slug>.md` e para os ADRs aplicáveis, dizendo **quem vence onde divergirem** (a spec vence o ADR quando o ADR ficou para trás; diga isso explicitamente, como no plano da 2538).
-2. **Decisões (não reabrir)** — o que foi fechado com o owner no §4, uma linha cada, com o porquê. É o que impede o Cursor de "melhorar" a decisão.
+2. **Decisões (não reabrir)** — o que foi fechado no §4, uma linha cada, com o porquê e, nas decisões de classe owner, quem aprovou, quando e por qual canal. É o que impede o Cursor de "melhorar" a decisão.
 3. **Arquitetura** — o desenho; diagrama quando o fluxo tiver mais de dois saltos.
 3a. **Manifesto de execução** — obrigatório. O formato vem de `.cursor/commands/execute.md`, e as regras de preenchimento estão na seção "Manifesto de execução" da `plan-for-cursor`. O SHA-base é o `HEAD` na hora de commitar o plano.
 3b. **Matriz de cobertura** — montada **antes** das fatias, no formato do contrato de cobertura da `plan-for-cursor` (passe 11, `references/coverage-contract.md`): AC → comportamento → resultado esperado → fronteira de produção → teste → discriminante, mais as dimensões de risco aplicáveis e excluídas. O desafio do `reviewer` sobre a matriz faz parte do passe 11; não peça um segundo.
@@ -143,13 +144,13 @@ O plano só existe de verdade depois de commitado: plano não commitado é sobre
 
 1. **Confira a branch corrente.** `master` **não aceita push direto** (TF402455) e nem deve receber o plano: crie `feature/wi-<id>-<slug>` a partir dela — é o nome que habilita a rastreabilidade que o `/audit-task` usa depois. Se já estiver numa branch de trabalho, commite nela.
 2. **Commite** o `.cursor/plans/*.plan.md` e, quando materializado, o `backlog/tasks/<id>-<slug>.md`. Nada mais entra nesse commit: edição de harness, skill, hook ou doc de governança vai em **branch separada**, mesmo que feita nesta sessão.
-3. **Não faça push nem abra PR por iniciativa própria** — pergunte. Se o owner pedir, confirme depois com `git log` local × `origin/<branch>` que o push realmente saiu.
+3. **Não faça push nem abra PR por iniciativa própria** — pergunte. Se o usuário pedir, confirme depois com `git log` local × `origin/<branch>` que o push realmente saiu.
 
 ---
 
 ## 7. Fechamento
 
-Diga ao owner, em poucas linhas:
+Diga ao usuário, em poucas linhas:
 
 - caminho do plano e as fatias, na ordem;
 - as perguntas do §4 e o que foi decidido em cada uma;
