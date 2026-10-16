@@ -69,6 +69,8 @@ Handle each outcome:
 
 Confirm the plan file is committed. If it is not, stop: only committed plans are executable.
 
+Read the plan's "Decisões" section. If any decision is marked `pendente do owner` (the owner-approval contract of `plan-task`), stop and list the pending items: the plan waits for the owner's approval. A `rejeitado` or `com ajuste` decision whose consequences the plan does not yet reflect also stops the run.
+
 ## 2. Preflight and coverage
 
 - **Preflight:** run it exactly as `execute.md` §1 orders. Every 🔴 or 🟡 is fixed in the plan before code, and the preflight runs again. A finding that needs a product, ADR, or release decision stops the run for the owner.

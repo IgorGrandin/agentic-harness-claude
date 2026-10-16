@@ -38,11 +38,23 @@ Fato não é decisão de ninguém: o que se responde lendo código, rules ou ADR
    Contexto: <2-3 frases>
    Bloqueia: <o que não avança sem a resposta>
 
-   | # | Decisão | Opções | Recomendação e porquê | Impacto |
-   |---|---|---|---|---|
+   | # | Decisão | Opções | Recomendação e porquê | Escolha do usuário | Impacto |
+   |---|---|---|---|---|---|
    ```
 
-3. **Espere a resposta.** O usuário leva o pedido ao owner, numa conversa ou num PR, e volta com "aprovado", "rejeitado" ou "aprovado com ajuste", por item. Não grave artefato que dependa de uma decisão pendente.
-4. **Registre** no artefato (seção "Decisões" do plano, spec ou delta) cada decisão com quem aprovou, quando e por qual canal. Exemplo: `aprovado pelo owner em 2026-10-16, via conversa relatada pelo usuário` ou `via PR #123`.
+3. **Pré-aprovação do usuário (opcional).** O usuário pode escolher, para cada item, a opção que vai submeter ao owner. Com isso, você grava o artefato (plano, spec ou delta) com a escolha dele e a marca de pendência, em vez de esperar.
+4. **Submissão ao owner.** O usuário leva o pedido ao owner por um destes canais:
+   - **Conversa:** ele volta com a resposta por item.
+   - **PR em rascunho:** só quando o usuário pedir. O PR leva o artefato commitado e, na descrição, a tabela de decisões pendentes. O owner aprova ou comenta no PR, e você consegue ler a aprovação e os comentários no Azure DevOps.
+   - **Work Item:** um comentário com a tabela, para decisões de spec. O owner responde ali.
+5. **Registre o estado** de cada decisão na seção "Decisões" do artefato, usando exatamente um destes:
+   - `pré-aprovado pelo usuário em <data> — pendente do owner`
+   - `aprovado pelo owner em <data>, via <canal>` (exemplos de canal: `conversa relatada pelo usuário`, `PR #123`, `comentário na WI #456`)
+   - `aprovado pelo owner com ajuste em <data>, via <canal>: <o ajuste>`
+   - `rejeitado pelo owner em <data>, via <canal>`
 
-Uma decisão rejeitada ou alterada pode reabrir perguntas do usuário que dependiam dela. Volte ao passo 1 só para elas.
+   A atualização de estado é um commit novo no artefato.
+
+**Pendência bloqueia execução.** Plano ou delta com qualquer decisão `pendente do owner` não é executável: o `/execute` recusa. Spec com decisão pendente não é atribuída a um dev; ela pode existir no board, mas fica sem responsável até a aprovação.
+
+Uma decisão rejeitada ou aprovada com ajuste pode reabrir perguntas do usuário que dependiam dela. Volte ao passo 1 só para elas e corrija o artefato.

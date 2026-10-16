@@ -38,7 +38,9 @@ Use `/change-task <WI-number|spec-path|plan-path>` with the requested change to 
 
 ## Build the new plan
 
-After the delta is accepted (by the user, and by the owner for owner-class items), write a new plan in the format `/execute` consumes. Preserve the original spec, plan, statuses, and history. Record:
+After the delta is accepted, write a new plan in the format `/execute` consumes. The user accepts the delta. Each owner-class item is either approved by the owner or pre-approved by the user and recorded in the plan's Decisions as `pendente do owner`, using the states of the owner-approval contract. On the user's request, open a draft PR with the committed plan and the approval table, and update the states in a new commit when the owner answers.
+
+Preserve the original spec, plan, statuses, and history. Record:
 - the canonical spec and parent-plan links;
 - the baseline SHA and evidence sources;
 - all new slices as `pending`.
@@ -64,7 +66,7 @@ Do not:
 - execute slices or run full gates;
 - deploy, act on PRs, commit, or push.
 
-The next step is `/execute <new-plan-path>` after the delta plan is accepted. Prefer the explicit path, because a WI lookup may be ambiguous.
+The next step is `/execute <new-plan-path>` after the delta plan is accepted and no decision is `pendente do owner`. Prefer the explicit path, because a WI lookup may be ambiguous.
 
 ## Handoff
 

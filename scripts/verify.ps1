@@ -99,12 +99,14 @@ $holders = @(Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filter '*.
 if ($holders.Count -ne 1) { Fail "AC7: coverage-contract anchor found in $($holders.Count) files (expected 1)" }
 
 # The owner-approval contract also has one source; spec-task and change-task point to it.
-$approvalAnchor = 'aprovado com ajuste'
+$approvalAnchor = 'aprovado pelo owner com ajuste em'
 $approvalHolders = @(Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filter '*.md' | Where-Object { (Read-Text $_.FullName).Contains($approvalAnchor) })
 if ($approvalHolders.Count -ne 1) { Fail "Owner-approval contract anchor found in $($approvalHolders.Count) files (expected 1)" }
 foreach ($name in @('plan-task', 'spec-task', 'change-task')) {
     if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('owner-approval.md')) { Fail "$name does not reference the owner-approval contract" }
 }
+# A plan with a decision still pending the owner must not be executable.
+if (-not (Read-Text (Join-Path $root 'skills/execute/SKILL.md')).Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }
 
 # Relative Markdown links resolve, and none climbs out of the skill tree.
 foreach ($file in Get-ChildItem (Join-Path $root 'skills'), (Join-Path $root 'agents') -Recurse -File -Filter '*.md') {

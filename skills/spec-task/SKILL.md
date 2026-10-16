@@ -16,7 +16,7 @@ Levantar o conteúdo (passo 1) e resolver conflitos de arquitetura (passo 2) seg
 - **Sempre traga uma recomendação.** Para cada pergunta, já venha com sua resposta sugerida (e o porquê) — quem decide não parte do zero.
 - **Fato é seu trabalho; decisão é do usuário ou do owner, conforme o contrato.** Se algo pode ser respondido explorando o código/docs (ex.: "esse guard já existe?", "esse campo já é real ou mock?"), vá lá e descubra — não pergunte. Só vire pergunta o que é genuinamente uma escolha (trade-off, prioridade, corte de escopo).
 - **Percorra a árvore de dependências.** Resolva uma decisão por vez, na ordem em que uma depende da outra — não pule pra uma decisão que depende de uma resposta ainda em aberto.
-- **Não finalize sem entendimento compartilhado.** Só execute o passo 4 (criar Work Item + gravar o arquivo) depois que as perguntas abertas dos passos 1-2 estiverem resolvidas, o usuário tiver confirmado e as decisões de classe owner estiverem aprovadas. Se um conflito de arquitetura aparecer no meio do caminho (passo 2), pare e resolva antes de continuar — não empurre a decisão pra dentro da spec como ressalva e siga em frente.
+- **Não finalize sem entendimento compartilhado.** Só execute o passo 4 (criar Work Item + gravar o arquivo) depois que as perguntas abertas dos passos 1-2 estiverem resolvidas, o usuário tiver confirmado e cada decisão de classe owner estiver aprovada ou pré-aprovada pelo usuário. Uma pré-aprovada entra na seção "Decisões do owner" com o estado `pendente do owner`, conforme o contrato. Se um conflito de arquitetura aparecer no meio do caminho (passo 2), pare e resolva antes de continuar — não empurre a decisão pra dentro da spec como ressalva e siga em frente.
 
 ## 1. Levantar o conteúdo com o usuário
 
@@ -81,7 +81,16 @@ Formato (idêntico nos dois lugares):
 
 ## Referências de arquitetura
 {ADRs e rules aplicáveis, com link relativo}
+
+## Decisões do owner
+{só quando houver: uma linha por decisão, com o estado do contrato de aprovação}
 ```
+
+**Submissão ao owner.** Com qualquer decisão `pendente do owner`, a spec pode ser criada no board, mas fica **sem responsável** até a aprovação (contrato de aprovação). Por pedido do usuário, submeta por um destes canais:
+- **Comentário na WI**, com a tabela do pedido de aprovação;
+- **PR em rascunho**, só com o `backlog/tasks/<id>-<slug>.md` commitado e a tabela na descrição.
+
+Quando o owner responder, atualize os estados no arquivo e no Work Item.
 
 Não inclua passos de implementação, escolha de algoritmo ou nomes de classes/métodos a criar — isso é decisão do dev. Se o usuário insistir em detalhar "como", pergunte se não é o caso de ele mesmo pegar a task no modo "terceiro dev" (spec vira plano do Cursor, fluxo `/execute`+`/revise` de sempre).
 
@@ -91,3 +100,4 @@ Diga ao usuário:
 
 - Nomeie a branch referenciando o ID do Work Item (ex. `feature/wi-1234-slug-curto`) — é o que habilita rastreabilidade e a checagem de conflito por diff mais adiante, no `/audit-task`.
 - Se editar a spec depois (no Work Item ou no arquivo), atualize os dois — o arquivo do repo é o que conta em caso de divergência, mas deixar o Work Item desatualizado confunde quem só olha o board.
+- Se houver decisões `pendente do owner`, liste-as e diga por qual canal elas vão ao owner. A task só é atribuível depois da aprovação.
