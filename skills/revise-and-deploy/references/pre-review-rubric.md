@@ -34,9 +34,9 @@ Check specification synchronization in both directions: implementation against t
 
 ## Classify findings and decide
 
-Use the project's canonical severity vocabulary and the audit verdicts **conforme**, **conforme com ressalvas**, and **não conforme**. Report evidence with file and line or other precise locator, explain user or system impact, and state the smallest corrective action or decision needed. Distinguish code findings, governance findings, missing evidence, and accepted decision residues. A recorded owner decision is not a finding unless new evidence changes its basis.
+Use the project's canonical severity vocabulary and the audit verdicts **conforme**, **conforme com ressalvas**, and **não conforme**. Report evidence with file and line or other precise locator, explain user or system impact, and state the smallest corrective action or decision needed. Distinguish code findings, governance findings, missing evidence, and accepted decision residues. A recorded decision is not a finding unless new evidence changes its basis.
 
-For an architectural finding, identify the valid goal separately from the problematic approach and describe an alternative only when repository evidence supports one. Do not invent an architecture, authorization, security, access, data, migration, or contract decision. Escalate unresolved consequential decisions to the user/owner. Any unresolved blocking finding stops progression in both workflow modes.
+For an architectural finding, identify the valid goal separately from the problematic approach and describe an alternative only when repository evidence supports one. Do not invent an architecture, authorization, security, access, data, migration, or contract decision. Escalate unresolved consequential decisions to the user. Any unresolved blocking finding stops progression in both workflow modes.
 
 The report should include:
 

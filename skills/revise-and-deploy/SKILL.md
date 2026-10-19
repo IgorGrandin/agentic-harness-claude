@@ -1,6 +1,6 @@
 ---
 name: revise-and-deploy
-description: Audit a completed execution, review the exact local diff, validate or publish its PR, and deploy the audited commit to Dev2 when the user authorizes the workflow. Use for an end-to-end revise-and-deploy request; ask the user to choose automatic or manual progression before starting.
+description: Audits a completed execution, reviews the exact local diff, validates or publishes its PR, and deploys the audited commit to Dev2 when the user authorizes the workflow. Use for an end-to-end revise-and-deploy request; ask the user to choose automatic or manual progression before starting.
 ---
 
 # Revise and deploy to Dev2

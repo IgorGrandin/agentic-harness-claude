@@ -79,7 +79,7 @@ foreach ($name in $expectedAgents.Keys) {
         $actual = @((Get-Field $fm 'disallowedTools') -split ',\s*')
         foreach ($tool in $want.disallow) { if ($tool -notin $actual) { Fail "AC4: $name does not disallow $tool" } }
     }
-    if ((Read-Text $path) -match '(?im)^model:\s*fable') { Fail "AC4: $name uses Fable, which the owner forbids" }
+    if ((Read-Text $path) -match '(?im)^model:\s*fable') { Fail "AC4: $name uses Fable, which is forbidden" }
 }
 
 # AC5 - lean global instructions with the single delegation policy.
@@ -93,30 +93,36 @@ foreach ($term in @('Codex', 'kernel', 'runner', 'require_escalated')) {
 }
 
 # AC7 - the coverage contract has one source.
-# ASCII-only anchor: Windows PowerShell 5.1 reads this BOM-less script as ANSI.
+# ASCII-only anchors: Windows PowerShell 5.1 reads this BOM-less script as ANSI.
 $anchor = 'para aumentar a contagem de fatias'
 $holders = @(Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filter '*.md' | Where-Object { (Read-Text $_.FullName).Contains($anchor) })
 if ($holders.Count -ne 1) { Fail "AC7: coverage-contract anchor found in $($holders.Count) files (expected 1)" }
 
-# The owner-approval contract also has one source; spec-task and change-task point to it.
-$approvalAnchor = 'aprovado pelo owner com ajuste em'
-$approvalHolders = @(Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filter '*.md' | Where-Object { (Read-Text $_.FullName).Contains($approvalAnchor) })
-if ($approvalHolders.Count -ne 1) { Fail "Owner-approval contract anchor found in $($approvalHolders.Count) files (expected 1)" }
-foreach ($name in @('plan-task', 'spec-task', 'change-task')) {
-    if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('owner-approval.md')) { Fail "$name does not reference the owner-approval contract" }
+# The decision record has one source; the skills that record decisions point to it.
+$decisionsPath = Join-Path $root 'skills/plan-task/references/decisions.md'
+if (-not (Test-Path $decisionsPath)) { Fail 'Missing decision record skills/plan-task/references/decisions.md' }
+else {
+    $decisionsText = Read-Text $decisionsPath
+    # Each recorded decision must be self-explanatory: the record keeps the per-decision block fields.
+    foreach ($field in @('**Problema:**', '**Motivo:**', '**Incertezas:**', ' do dev')) {
+        if (-not $decisionsText.Contains($field)) { Fail "Decision record lost '$field'" }
+    }
 }
-# Each recorded decision must be self-explanatory: the contract keeps the per-decision block fields.
-$approvalText = Read-Text (Join-Path $root 'skills/plan-task/references/owner-approval.md')
-foreach ($field in @('**Problema:**', '**Motivo:**', '**Incertezas:**')) {
-    if (-not $approvalText.Contains($field)) { Fail "Owner-approval contract lost the decision block field $field" }
+foreach ($name in @('plan-task', 'spec-task', 'change-task', 'execute')) {
+    if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('decisions.md')) { Fail "$name does not reference the decision record" }
 }
-# A plan with a decision still pending the owner must not be executable.
+# The dev makes every decision: no owner-approval machinery may come back into skill instructions.
+foreach ($file in Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filter '*.md') {
+    $text = Read-Text $file.FullName
+    foreach ($pattern in @('pendente do owner', 'aprovado pelo usu', 'owner-approval', 'classe owner', 'owner-class')) {
+        if ($text.Contains($pattern)) { Fail "Owner-approval leftover '$pattern' in $($file.FullName.Substring($root.Length + 1))" }
+    }
+}
+# /execute consults decisions in the Work Item and reads the gate's result field.
 $executeText = Read-Text (Join-Path $root 'skills/execute/SKILL.md')
-if (-not $executeText.Contains('pendente do owner')) { Fail '/execute lacks the pending-owner-decision stop' }
-# An owner decision that appears mid-run stops dependent slices and ends with the owner report.
-if (-not $executeText.Contains('### Owner decision during execution')) { Fail '/execute lacks the mid-run owner-decision step' }
-# Decisions are consulted in the Work Item, the owner's source of truth, not in the plan or mirror.
 if (-not $executeText.Contains('in the Work Item itself')) { Fail '/execute does not consult decisions in the Work Item' }
+if (-not $executeText.Contains('### Decisions during execution')) { Fail '/execute lacks the mid-run decision step' }
+if (-not $executeText.Contains('`result` is `GREEN`')) { Fail '/execute does not read the gate manifest result field' }
 
 # Relative Markdown links resolve, and none climbs out of the skill tree.
 foreach ($file in Get-ChildItem (Join-Path $root 'skills'), (Join-Path $root 'agents') -Recurse -File -Filter '*.md') {

@@ -11,6 +11,6 @@ Leia o documento inteiro.
 
 Antes de agir, confira rapidamente se o estado ainda bate com a realidade: `git status`/`git log` desde o timestamp do handoff; se o handoff aponta um plano do Cursor ou ADR específico, dê uma olhada rápida para confirmar que a descrição ainda procede. Não é uma auditoria completa — só o suficiente para não retomar algo que já mudou ou já foi concluído enquanto a sessão estava fechada.
 
-Apresente ao usuário um resumo curto: onde paramos, o que (se algo) mudou desde o handoff, e a próxima ação proposta. Espere confirmação antes de prosseguir — não presuma autorização para agir (contrato "você propõe, o owner decide", `CLAUDE.md` §2).
+Apresente ao usuário um resumo curto: onde paramos, o que (se algo) mudou desde o handoff, e a próxima ação proposta. Espere confirmação antes de prosseguir — não presuma autorização para agir (você propõe, o dev decide).
 
 O arquivo de handoff é descartável: depois de retomado com sucesso, pode ser ignorado ou apagado — não precisa de arquivamento formal.

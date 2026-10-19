@@ -1,6 +1,6 @@
 ---
 name: plan-task
-description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, resolve tudo que ficar abaixo de 95% de certeza com o usuário e, em lote, com o owner quando a decisão for dele e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Use quando o usuário pedir "/plan-task <nº>".
+description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, decide com o dev tudo que ficar abaixo de 95% de certeza, registra as decisões na WI e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Use quando o dev pedir "/plan-task <nº>".
 argument-hint: "nº do Work Item do Azure Boards (ex.: 2538)"
 disable-model-invocation: true
 ---
@@ -17,9 +17,9 @@ Org `confitecDevOps`, projeto `brixbroker`.
 
 **Caminho preferencial (MCP `azure-devops`):**
 
-- `wit_work_item` com `action: "get"`, `id`, `project: "brixbroker"`, `expand: "All"` — traz campos **e** `relations` (anexos e links).
-- `wit_work_item` com `action: "list_comments"`, `workItemId` — comentários.
-- `wit_work_item_attachment` com `attachmentId`, `fileName` e, para binário, `savePath` — **só caminho relativo** (o servidor rejeita absoluto e `..`), resolvido a partir do cwd do servidor MCP. Sem `savePath`, texto volta como texto e imagem volta como recurso visualizável.
+- `azure-devops:wit_work_item` com `action: "get"`, `id`, `project: "brixbroker"`, `expand: "All"` — traz campos **e** `relations` (anexos e links).
+- `azure-devops:wit_work_item` com `action: "list_comments"`, `workItemId` — comentários.
+- `azure-devops:wit_work_item_attachment` com `attachmentId`, `fileName` e, para binário, `savePath` — **só caminho relativo** (o servidor rejeita absoluto e `..`), resolvido a partir do cwd do servidor MCP. Sem `savePath`, texto volta como texto e imagem volta como recurso visualizável.
 
 **Fallback verificado (MCP fora do ar — acontece):** `az` já está logado e não precisa da extensão `azure-devops` (ela **não** está instalada; `az boards` não funciona aqui). Use `az rest` com o resource do Azure DevOps:
 
@@ -42,10 +42,10 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 | `System.BoardColumn` | o estado real; `System.State = "Active"` também vale para Ready-to-work |
 | `relations` → `rel: "AttachedFile"` | anexo: GUID é o último segmento da `url`, nome em `attributes.name` |
 | `relations` → `Hierarchy-Reverse` / `Related` | leia ao menos título e objetivo das WIs ligadas — é onde mora o escopo vizinho que o plano não deve invadir |
-| `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o usuário** antes de planejar do zero |
+| `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o dev** antes de planejar do zero |
 | comentários | vêm em **HTML**; é comum a mudança de escopo mais recente estar ali, não na descrição |
 
-**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao usuário — não planeje por cima do buraco.
+**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao dev — não planeje por cima do buraco.
 
 ---
 
@@ -54,10 +54,10 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 Por ADR-0039 (`docs/adr/0039-team-scaling-task-spec-and-review-workflow.md` no repo do projeto) §1 a spec vive em dois lugares, e **o arquivo do repo é a fonte**; a WI é a projeção.
 
 - **Arquivo existe e bate com a WI:** siga.
-- **Arquivo existe e diverge:** o arquivo vence — mas a divergência é **pergunta** (§4: ao usuário, ou ao owner se mudar escopo ou contrato), não algo para resolver em silêncio. Divergência costuma significar que alguém editou a WI no board depois.
+- **Arquivo existe e diverge:** o arquivo vence — mas a divergência é **pergunta ao dev** (§4), não algo para resolver em silêncio. Divergência costuma significar que alguém editou a WI no board depois.
 - **Arquivo não existe:** materialize `backlog/tasks/<id>-<slug>.md` a partir da WI, no formato do `/spec-task` §4 (Objetivo · Contexto · Escopo · Critérios de aceite · Área de impacto · Referências de arquitetura). Ele entra no mesmo commit do plano. Se a WI não tiver material para preencher **Critérios de aceite** ou **Área de impacto**, isso é lacuna — resolva com o owner antes de gravar, não invente para completar o formulário.
 
-Se a WI estiver em coluna **depois** de Ready-to-work e atribuída a outra pessoa, avise o usuário antes de planejar: pode haver dev humano no meio.
+Se a WI estiver em coluna **depois** de Ready-to-work e atribuída a outra pessoa, avise o dev antes de planejar: pode haver dev humano no meio.
 
 ---
 
@@ -67,10 +67,10 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 - **ADRs vigentes da área** (`docs/adr/`, resumo em `docs/governance/vocabulario-e-decisoes.md` §2) — inclusive as armadilhas com reincidência conhecida.
 - **Rules do Cursor da área**, despachadas por `.cursor/rules/005-documentation-context-hierarchy.mdc`. Lembre da assimetria: o Cursor recebe metade delas por `globs`; **para você não chega nenhuma**. Rule não aberta é rule não checada.
-- **Release corrente**: `docs/roadmap/release-map.md` e o `scope.md`. Se a WI pedir algo de release futura, isso é congelamento (`CLAUDE.md` §2, T93) — leve ao owner, não planeje por cima.
+- **Release corrente**: `docs/roadmap/release-map.md` e o `scope.md`. Se a WI pedir algo de release futura, isso é congelamento (`CLAUDE.md` §2, T93) — leve ao dev, não planeje por cima.
 - **Vocabulário canônico** antes de nomear qualquer coisa (`CLAUDE.md` §5): Lead × Contact × Opportunity × Customer, papéis × unidades de venda, Ticket × Ação.
 
-**Se o pedido conflitar com um ADR vigente**, pare e aplique a skill `domain-modeling` — o conflito vira emenda a ADR, ADR novo ou corte de escopo, e a escolha é do owner. Nunca vire ressalva dentro do plano.
+**Se o pedido conflitar com um ADR vigente**, pare e aplique a skill `domain-modeling` — o conflito vira emenda a ADR, ADR novo ou corte de escopo, e a escolha é do dev. Nunca vire ressalva dentro do plano.
 
 ---
 
@@ -78,12 +78,9 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 Qualquer ponto em que a certeza fique abaixo de **95%** trava a gravação do plano. Disciplina da skill `grilling`, igual ao `/spec-task` §0:
 
-- **Quem decide o quê:** siga o contrato de aprovação em [references/owner-approval.md](references/owner-approval.md). As perguntas do usuário vão uma por vez; as decisões de classe owner vão num único pedido de aprovação em lote.
-- **Uma pergunta por vez ao usuário.** Espere a resposta antes da próxima.
-- **Sempre com recomendação.** Traga sua resposta sugerida e o porquê; quem decide não parte do zero.
-- **Fato é seu trabalho; decisão é do usuário ou do owner, conforme o contrato.** "Esse campo já existe?", "esse guard já está implementado?", "essa rule proíbe isso?" — vá ao código, à rule, ao ADR e descubra. Só vira pergunta o que é escolha genuína: trade-off, prioridade, corte de escopo, conflito com decisão anterior.
-- **Percorra a árvore de dependências.** Não pule para uma decisão que depende de resposta ainda aberta.
-- **Não grave o plano antes de fechar tudo.** Empurrar a dúvida para uma seção "perguntas em aberto" é o mesmo que mandar o Cursor improvisar. A única exceção é a decisão de classe owner que o usuário pré-aprovou. Ela é registrada na seção "Decisões" do Work Item e do espelho `backlog/tasks` com o estado `pendente do owner`, conforme o contrato. O plano só fica executável depois da aprovação.
+- **O dev decide; vocês escolhem juntos.** Siga [references/decisions.md](references/decisions.md): uma pergunta por vez, sempre com a sua recomendação e o porquê, na ordem da árvore de dependências.
+- **Fato é seu trabalho, decisão é do dev.** "Esse campo já existe?", "esse guard já está implementado?", "essa rule proíbe isso?" — vá ao código, à rule, ao ADR e descubra. Só vira pergunta o que é escolha genuína: trade-off, prioridade, corte de escopo, conflito com decisão anterior.
+- **Não grave o plano antes de fechar tudo.** Empurrar a dúvida para uma seção "perguntas em aberto" é o mesmo que mandar o Cursor improvisar.
 
 Gatilhos típicos de "<95%" nesta casa — se algum aparecer, é pergunta, não suposição:
 
@@ -100,7 +97,7 @@ Gatilhos típicos de "<95%" nesta casa — se algum aparecer, é pergunta, não 
 
 **Antes de entregar, aplique a skill `plan-for-cursor` inteira** — os passes e a seção obrigatória de verificações. Ela é a régua de qualidade; não recrie nem resuma aqui.
 
-**Um arquivo por WI**, fatiado por dentro: `.cursor/plans/wi_<id>_<slug>.plan.md`. Só vire mais de um arquivo se a WI abrigar entregas genuinamente independentes — e nesse caso proponha o corte ao usuário antes de gravar.
+**Um arquivo por WI**, fatiado por dentro: `.cursor/plans/wi_<id>_<slug>.plan.md`. Só vire mais de um arquivo se a WI abrigar entregas genuinamente independentes — e nesse caso proponha o corte ao dev antes de gravar.
 
 Frontmatter no formato que o Cursor lê (modelo real: `.cursor/plans/wi_2538_bot_whatsapp_3416ef5e.plan.md`):
 
@@ -122,7 +119,7 @@ isProject: false
 Corpo, na ordem:
 
 1. **Fonte canônica** — link para `backlog/tasks/<id>-<slug>.md` e para os ADRs aplicáveis, dizendo **quem vence onde divergirem** (a spec vence o ADR quando o ADR ficou para trás; diga isso explicitamente, como no plano da 2538).
-2. **Decisões (não reabrir)** — o conteúdo do que foi fechado no §4, uma linha cada, com o porquê e o ID da decisão (`D1`, `D2`…) na seção "Decisões" do Work Item. É uma cópia para a execução: o Work Item é a fonte de verdade e de consulta das decisões, e em divergência vale ele (contrato de aprovação). É o que impede o Cursor de "melhorar" a decisão.
+2. **Decisões (não reabrir)** — o conteúdo do que foi fechado no §4, uma linha cada, com o porquê e o ID da decisão (`D1`, `D2`…) na seção "Decisões do dev" do Work Item. É uma cópia para a execução: em divergência, vale o Work Item ([references/decisions.md](references/decisions.md)). É o que impede o Cursor de "melhorar" a decisão.
 3. **Arquitetura** — o desenho; diagrama quando o fluxo tiver mais de dois saltos.
 3a. **Manifesto de execução** — obrigatório. O formato vem de `.cursor/commands/execute.md`, e as regras de preenchimento estão na seção "Manifesto de execução" da `plan-for-cursor`. O SHA-base é o `HEAD` na hora de commitar o plano.
 3b. **Matriz de cobertura** — montada **antes** das fatias, no formato do contrato de cobertura da `plan-for-cursor` (passe 11, `references/coverage-contract.md`): AC → comportamento → resultado esperado → fronteira de produção → teste → discriminante, mais as dimensões de risco aplicáveis e excluídas. O desafio do `reviewer` sobre a matriz faz parte do passe 11; não peça um segundo.
@@ -143,15 +140,14 @@ Duas fronteiras que o plano precisa dizer em voz alta, porque o Cursor erra nela
 O plano só existe de verdade depois de commitado: plano não commitado é sobrescrito pelo primeiro `git merge` e some sem aviso (`plan-for-cursor` §7).
 
 1. **Confira a branch corrente.** `master` **não aceita push direto** (TF402455) e nem deve receber o plano: crie `feature/wi-<id>-<slug>` a partir dela — é o nome que habilita a rastreabilidade que o `/audit-task` usa depois. Se já estiver numa branch de trabalho, commite nela.
-2. **Registre as decisões e commite.** Com a autorização do usuário, grave a seção "Decisões" no Work Item e no espelho `backlog/tasks/<id>-<slug>.md`. Depois commite o `.cursor/plans/*.plan.md` e o `backlog/tasks/<id>-<slug>.md`, materializado ou atualizado. Nada mais entra nesse commit: edição de harness, skill, hook ou doc de governança vai em **branch separada**, mesmo que feita nesta sessão.
-3. **Não faça push nem abra PR por iniciativa própria** — pergunte. Se o usuário pedir, confirme depois com `git log` local × `origin/<branch>` que o push realmente saiu.
-4. **PR para o owner (só com pedido do usuário).** Quando houver decisões `pendente do owner`, o usuário pode pedir um PR em rascunho para o owner analisar. O PR leva o plano e o espelho `backlog/tasks` commitados, e a descrição traz a tabela do pedido de aprovação com a escolha do usuário em cada item. Quando o owner responder, atualize os estados no Work Item e no espelho (commit novo) e ajuste o plano se alguma decisão mudar, tudo antes de qualquer execução.
+2. **Registre as decisões e commite.** Depois que o dev confirmar o texto, grave a seção "Decisões do dev" no Work Item e no espelho `backlog/tasks/<id>-<slug>.md`. Depois commite o `.cursor/plans/*.plan.md` e o `backlog/tasks/<id>-<slug>.md`, materializado ou atualizado. Nada mais entra nesse commit: edição de harness, skill, hook ou doc de governança vai em **branch separada**, mesmo que feita nesta sessão.
+3. **Não faça push nem abra PR por iniciativa própria** — pergunte. Se o dev pedir, confirme depois com `git log` local × `origin/<branch>` que o push realmente saiu.
 
 ---
 
 ## 7. Fechamento
 
-Diga ao usuário, em poucas linhas:
+Diga ao dev, em poucas linhas:
 
 - caminho do plano e as fatias, na ordem;
 - as perguntas do §4 e o que foi decidido em cada uma;

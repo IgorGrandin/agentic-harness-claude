@@ -1,6 +1,6 @@
 ---
 name: sdd-workflow
-description: Spec-driven procedure for repository work (bugs, features, discovery, refactors, reviews). Use when a task needs more than a one-sentence diff; skip it for local microtasks.
+description: Applies a spec-driven procedure to repository work (bugs, features, discovery, refactors, reviews). Use when a task needs more than a one-sentence diff; skip it for local microtasks.
 ---
 
 # SDD workflow

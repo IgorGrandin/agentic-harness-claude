@@ -12,7 +12,7 @@ Salve em `%TEMP%\claude-handoffs\Broker\<YYYY-MM-DD-HHmm>-<slug>.md` — fora do
 Inclua:
 
 - Onde a sessão parou e qual é a próxima ação concreta — uma ação clara, não uma lista de opções a explorar.
-- Decisões pendentes do owner e bloqueios (ex.: "aguardando o Cursor executar C1-C3", "aguardando o owner decidir X").
+- Decisões em aberto e bloqueios (ex.: "aguardando o Cursor executar C1-C3", "falta decidir X").
 - Ponteiros para release/ADR/scope/plano do Cursor em foco, e para as entradas de `MEMORY.md` relevantes — cite pelo caminho ou nome, não copie o conteúdo.
 - Uma seção **Skills sugeridas** com o que o próximo agente deve invocar ao retomar (ex.: `mem-search` para reconstituir uma memória citada, `/takeover` para ler este documento).
 

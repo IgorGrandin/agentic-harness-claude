@@ -1,6 +1,6 @@
 # agentic-harness-claude
 
-Harness global do owner para o Claude Code: o `CLAUDE.md` global, 5 subagentes e
+Harness global pessoal do dev para o Claude Code: o `CLAUDE.md` global, 5 subagentes e
 as skills de trabalho (inclusive os fluxos do BrixBroker). Substitui o
 `agentic-harness-v4`, que fica congelado como backup do Codex e para rollback.
 

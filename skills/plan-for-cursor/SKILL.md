@@ -1,6 +1,6 @@
 ---
 name: plan-for-cursor
-description: Checklist de qualidade para escrever um `.cursor/plans/*.plan.md` que o Cursor vai executar. Use ao produzir qualquer plano — inclusive os planos de correção do `/revise` e do `/review-pr`.
+description: Aplica o checklist de qualidade a um `.cursor/plans/*.plan.md` que o Cursor ou o /execute vai executar. Use ao produzir qualquer plano — inclusive os planos de correção do `/revise` e do `/review-pr`.
 ---
 
 Um plano é executado por outro agente, sem a conversa que o originou. Ele acerta o que está escrito e improvisa o que está subentendido — e improviso em plano é onde nascem os defeitos caros.
@@ -176,7 +176,7 @@ O que só quem escreve o plano sabe, e por isso não pode ficar para o executor:
 
 ## Seção obrigatória no plano
 
-Todo plano fecha com esta seção — é o que torna a disciplina **auditável pelo owner** em vez de privada:
+Todo plano fecha com esta seção — é o que torna a disciplina **auditável pelo dev** em vez de privada:
 
 ```markdown
 # Verificações feitas antes de entregar este plano
@@ -200,4 +200,4 @@ Se algum passe não foi feito, **diga qual e por quê** em vez de omitir. Silên
 
 ## O que este arquivo não cobre
 
-Formato de ADR (`domain-modeling`), veredito de auditoria (`revise`, `review-pr`), e a decisão de **se** deve haver plano — que é do owner.
+Formato de ADR (`domain-modeling`), veredito de auditoria (`revise`, `review-pr`), e a decisão de **se** deve haver plano — que é do dev.

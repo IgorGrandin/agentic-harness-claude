@@ -20,7 +20,6 @@
 - A diagnosis or review request authorizes inspection and reporting, not implementation.
 - Stop when the authorized outcome is met; unrelated cleanup needs separate authorization.
 - Never persist credentials, tokens, sessions, or production secrets.
-- When a decision belongs to someone else (a project owner or manager), let the user pre-approve an option, keep work that depends on it waiting, and continue the rest. End the task with one approval report: options, the user's choice, your recommendation, impact, and what is blocked. Record who approved, when, and how.
 
 ## Memory
 

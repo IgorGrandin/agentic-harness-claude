@@ -1,6 +1,6 @@
 ---
 name: repo-aware-architecture
-description: Explore and resolve feature, integration, or system-design decisions that must be grounded in an existing repository. Use when multiple approaches are plausible, the change is cross-cutting or hard to reverse, or architecture must be validated and recorded before implementation. Do not use for straightforward changes with an established local pattern or for ideation that needs no repository context.
+description: Explores and resolves feature, integration, or system-design decisions that must be grounded in an existing repository. Use when multiple approaches are plausible, the change is cross-cutting or hard to reverse, or architecture must be validated and recorded before implementation. Do not use for straightforward changes with an established local pattern or for ideation that needs no repository context.
 ---
 
 # Repo-aware architecture

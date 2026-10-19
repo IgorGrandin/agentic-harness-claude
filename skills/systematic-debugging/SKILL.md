@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Diagnose reproducible failures, regressions, incorrect behavior, and unclear defects by tracing evidence to a root cause before proposing a fix. Use when the cause is unknown, multiple layers may be involved, or an apparent fix could only mask a symptom. Do not use when the request is solely to implement an already-established correction.
+description: Diagnoses reproducible failures, regressions, incorrect behavior, and unclear defects by tracing evidence to a root cause before proposing a fix. Use when the cause is unknown, multiple layers may be involved, or an apparent fix could only mask a symptom. Do not use when the request is solely to implement an already-established correction.
 ---
 
 # Systematic debugging

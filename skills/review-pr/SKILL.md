@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Revisa um pull request do Azure DevOps aberto por um dev da equipe — audita o diff real contra as rules, ADRs e o escopo da release, aplica a rubrica de auditoria da casa, emite veredicto (conforme / com ressalvas / não conforme) e, com aval do owner, comenta no PR e registra o achado. Use quando o usuário pedir "/review-pr <número>".
+description: Revisa um pull request do Azure DevOps aberto por um dev da equipe — audita o diff real contra as rules, ADRs e o escopo da release, aplica a rubrica de auditoria da casa, emite veredicto (conforme / com ressalvas / não conforme) e, com aval do usuário, comenta no PR e registra o achado. Use quando o usuário pedir "/review-pr <número>".
 argument-hint: "número do PR (ex.: 1003)"
 disable-model-invocation: true
 ---
@@ -13,13 +13,13 @@ Azure DevOps via MCP — organização `confitecDevOps`, projeto `brixbroker`, r
 
 | Ferramenta | `action` | Para quê |
 |---|---|---|
-| `repo_pull_request` | `get` · `list` · `list_by_commits` | dados do PR; `get` aceita `includeChangedFiles`, `includeWorkItemRefs`, `includeLabels` |
-| `repo_pull_request_thread` | `list` · `list_comments` | ler threads e comentários |
-| `repo_pull_request_thread_write` | `create` · `reply` · `update_status` | comentar no PR |
-| `repo_file` | `get_content` · `list_directory` | conteúdo de arquivo numa branch/commit |
-| `pipelines_build` | `list` · `get_status` · `get_changes` | evidência de gate no CI |
+| `azure-devops:repo_pull_request` | `get` · `list` · `list_by_commits` | dados do PR; `get` aceita `includeChangedFiles`, `includeWorkItemRefs`, `includeLabels` |
+| `azure-devops:repo_pull_request_thread` | `list` · `list_comments` | ler threads e comentários |
+| `azure-devops:repo_pull_request_thread_write` | `create` · `reply` · `update_status` | comentar no PR |
+| `azure-devops:repo_file` | `get_content` · `list_directory` | conteúdo de arquivo numa branch/commit |
+| `azure-devops:pipelines_build` | `list` · `get_status` · `get_changes` | evidência de gate no CI |
 
-`repositoryId` e `pullRequestId` são obrigatórios nas de PR; `project` é obrigatório sempre que `repositoryId` for **nome** em vez de GUID (é o nosso caso: `brixbroker`/`brixbroker`). `pipelines_build` exige `project`.
+`repositoryId` e `pullRequestId` são obrigatórios nas de PR; `project` é obrigatório sempre que `repositoryId` for **nome** em vez de GUID (é o nosso caso: `brixbroker`/`brixbroker`). `azure-devops:pipelines_build` exige `project`.
 
 **Atenção ao mecânico:** nenhuma dessas ferramentas devolve **conteúdo de diff** — `includeChangedFiles` dá só a lista de arquivos. De onde vem o diff real: §3.
 
@@ -38,7 +38,7 @@ Combinado com a equipe: o dev deve anexar ao PR a **saída dos gates** e, quando
 
 **Procure a evidência de gate nesta ordem — pare na primeira que existir:**
 
-1. **Pipeline / build validation do próprio PR.** Cheque antes de qualquer coisa (`pipelines_build` com `action: "get_status"` para um build conhecido, ou `action: "list"` filtrando por `branchName`, ou ainda o status/threads do PR). Já existe pipeline plugado nos PRs deste repo. Se houver build cobrindo a superfície do diff, **é essa a evidência** — a `110` diz explicitamente que o destino do gate é o CI, "não um pedido pontual do owner a cada rodada". Cobrar saída manual de terminal existindo pipeline verde é ruído.
+1. **Pipeline / build validation do próprio PR.** Cheque antes de qualquer coisa (`azure-devops:pipelines_build` com `action: "get_status"` para um build conhecido, ou `action: "list"` filtrando por `branchName`, ou ainda o status/threads do PR). Já existe pipeline plugado nos PRs deste repo. Se houver build cobrindo a superfície do diff, **é essa a evidência** — a `110` diz explicitamente que o destino do gate é o CI, "não um pedido pontual do owner a cada rodada". Cobrar saída manual de terminal existindo pipeline verde é ruído.
 2. **Saída anexada pelo dev**, se não houver pipeline que cubra.
 3. **Pedido manual derivado** (§3) — só como fallback dos dois anteriores.
 
@@ -49,10 +49,10 @@ Antes de cobrar qualquer coisa, confira **o que o pipeline já cobre**: exigir d
 
 ## 3. Auditar contra a realidade, não contra a descrição
 
-Liste os arquivos tocados com `repo_pull_request` (`action: "get"`, `includeChangedFiles: true`) — isso dá **a lista, não o diff**. O conteúdo real sai de duas fontes, nesta ordem:
+Liste os arquivos tocados com `azure-devops:repo_pull_request` (`action: "get"`, `includeChangedFiles: true`) — isso dá **a lista, não o diff**. O conteúdo real sai de duas fontes, nesta ordem:
 
 1. **`git fetch` + `git diff <base>..<branch>` local** — mesmo caminho do `/audit-task`, é o que mostra o diff completo de verdade.
-2. **`repo_file`** (`action: "get_content"`, `version: <branch>`, `versionType: "Branch"`) — arquivo a arquivo, quando não dá para ter a branch local.
+2. **`azure-devops:repo_file`** (`action: "get_content"`, `version: <branch>`, `versionType: "Branch"`) — arquivo a arquivo, quando não dá para ter a branch local.
 
 Nunca audite pela lista de arquivos: ela diz *onde* mexeram, não *o que* fizeram. Diffs grandes estouram o limite e são salvos em arquivo — nesse caso **não delegue às cegas**: use `Grep` no arquivo salvo para achar os pontos quentes (termos do domínio da mudança) e `Read` com offset/limit nos trechos que importam. Leia o **código de verdade** dos arquivos centrais; resumo de diff não substitui.
 
@@ -86,7 +86,7 @@ Quando precisar pedir, **não peça "anexe os gates"**. O termo é jargão da ca
 4. `core` e `design-system` são os que mais escapam, porque quase todo diff passa de raspão por eles. Confira no diff se foram tocados de verdade antes de incluir ou omitir.
 5. Peça a saída **em texto, não print**, e avise que suíte já vermelha sem relação com o diff é **achado a reportar, não ruído a normalizar**.
 
-**Tom do pedido: comandos, não doutrina.** O dev não precisa internalizar a razão do gate para cumpri-lo — precisa saber o que rodar. Mande os comandos, uma linha dizendo por que **estes** projetos (ex.: "o diff encostou em `core` e `design-system`, não só na tela"), e a instrução de reportar vermelho pré-existente. **Corte** o histórico de incidentes, a explicação de por que `--filter` esconde vermelho e as citações de rule: isso é contexto de governança, é do owner, e no comentário do dev vira sermão. Reconheça o atrito quando ele existir — pedir 8 comandos na mão é chato, e dizer que a intenção é virar script/pipeline compra colaboração em vez de resistência.
+**Tom do pedido: comandos, não doutrina.** O dev não precisa internalizar a razão do gate para cumpri-lo — precisa saber o que rodar. Mande os comandos, uma linha dizendo por que **estes** projetos (ex.: "o diff encostou em `core` e `design-system`, não só na tela"), e a instrução de reportar vermelho pré-existente. **Corte** o histórico de incidentes, a explicação de por que `--filter` esconde vermelho e as citações de rule: isso é contexto de governança, fica com o usuário, e no comentário do dev vira sermão. Reconheça o atrito quando ele existir — pedir 8 comandos na mão é chato, e dizer que a intenção é virar script/pipeline compra colaboração em vez de resistência.
 
 No backend, mesmo desenho — respeitando o **gatilho condicional** do `Integration.Tests` que está na própria `110`, em vez de mandar rodar a bateria inteira por hábito. Acertar a superfície é o rigor; bateria cega num diff de três arquivos só encarece a próxima iteração.
 
@@ -106,7 +106,7 @@ Mais as perguntas que suíte verde não responde (critérios em `060` §"Desenho
 
 ### Resíduo decidido não é achado
 
-Antes de reportar, faça diff contra o registro canônico de resíduos (tabela "Resíduos e decisões" do build-log do passo, seção de status da ADR do lote) e contra o que já foi decidido em revisões anteriores deste mesmo PR. Resíduo com decisão do owner **não volta como achado** — só reabre com evidência nova, citada. Sem ela, a menção certa é "resíduo X segue como decidido".
+Antes de reportar, faça diff contra o registro canônico de resíduos (tabela "Resíduos e decisões" do build-log do passo, seção de status da ADR do lote) e contra o que já foi decidido em revisões anteriores deste mesmo PR. Resíduo com decisão registrada **não volta como achado** — só reabre com evidência nova, citada. Sem ela, a menção certa é "resíduo X segue como decidido".
 
 ## 5. Separe o objetivo do caminho
 
@@ -124,16 +124,16 @@ Vocabulário de `code-audit-mode.md`: **conforme** / **conforme com ressalvas** 
 
 Separe sempre **qualidade do código** de **conformidade de processo**. Um PR pode ter código exemplar e ainda ser "não conforme" por decidir, num PR, algo que cabia a um ADR — e dizer isso explicitamente evita que o dev leia o veredicto como crítica à competência dele.
 
-## 7. Desfecho — o owner decide
+## 7. Desfecho — o usuário decide
 
-**Você propõe, o owner decide** (`CLAUDE.md` §2). Apresente o veredicto e ofereça as opções reais (reverter o trecho estrutural / formalizar via ADR / aceitar com ressalvas / adiar). Só depois do aval:
+**Você propõe, o usuário decide**. Apresente o veredicto e ofereça as opções reais (reverter o trecho estrutural / formalizar via ADR / aceitar com ressalvas / adiar). Só depois do aval:
 
-- **Comentar no PR** com `repo_pull_request_thread_write` (`action: "create"`, `content`, `status: "Active"`; para comentário ancorado em linha, `filePath` + `rightFileStartLine`), no formato do §6 — endereçado ao dev, em português, direto e sem hostilidade. Deixe explícito o que está bloqueado e o que ele pode tocar enquanto isso. Se os gates não vieram, inclua no comentário o **bloco de comandos derivado** (§3) em vez da cobrança genérica — e, na primeira vez com cada dev, apresente o termo "gate de pronto" apontando para a `110`, para o vocabulário se espalhar em vez de ser presumido.
-- **Plano de correção**, se o owner pedir: artefato em `.cursor/plans/<slug>-correcoes.plan.md`, nunca código. **Aplique a skill `plan-for-cursor`** antes de entregar — os passes de verificação e a seção que os registra.
+- **Comentar no PR** com `azure-devops:repo_pull_request_thread_write` (`action: "create"`, `content`, `status: "Active"`; para comentário ancorado em linha, `filePath` + `rightFileStartLine`), no formato do §6 — endereçado ao dev, em português, direto e sem hostilidade. Deixe explícito o que está bloqueado e o que ele pode tocar enquanto isso. Se os gates não vieram, inclua no comentário o **bloco de comandos derivado** (§3) em vez da cobrança genérica — e, na primeira vez com cada dev, apresente o termo "gate de pronto" apontando para a `110`, para o vocabulário se espalhar em vez de ser presumido.
+- **Plano de correção**, se o usuário pedir: artefato em `.cursor/plans/<slug>-correcoes.plan.md`, nunca código. **Aplique a skill `plan-for-cursor`** antes de entregar — os passes de verificação e a seção que os registra.
 - **Proposta de ADR**, se a mudança merecer uma e não tiver: não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` (difícil de reverter + surpreendente sem contexto + trade-off real) e proponha.
 - **Registro na memória de sessão** quando a decisão ficar pendente, para a próxima sessão começar do saldo e não do zero.
 
-Não vote no PR (aprovar/rejeitar) por iniciativa própria — o voto é do owner, salvo pedido explícito.
+Não vote no PR (aprovar/rejeitar) por iniciativa própria — o voto é do usuário, salvo pedido explícito.
 
 ## 8. Nunca edite o código do PR
 

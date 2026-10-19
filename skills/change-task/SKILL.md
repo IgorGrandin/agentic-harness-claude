@@ -1,6 +1,6 @@
 ---
 name: change-task
-description: Plan an incremental change to an existing task after implementation has begun or completed, preserving its original specification and execution history.
+description: Plans an incremental change to an existing BrixBroker task after implementation has begun or completed, preserving its original spec and execution history and recording the new decisions in the Work Item. Use when the dev asks for "/change-task" or wants to alter a task that already has a plan or delivery.
 argument-hint: "<WI-number|spec-path|plan-path> plus the requested change"
 disable-model-invocation: true
 ---
@@ -15,31 +15,31 @@ Use `/change-task <WI-number|spec-path|plan-path>` with the requested change to 
 - Inspect the named source, the canonical spec, the parent plan and its status, the current branch and `HEAD`, the relevant source diff, and any available execution or gate evidence.
 - Record:
   - the exact baseline SHA;
-  - the original acceptance criteria and approved decisions;
+  - the original acceptance criteria and the decisions recorded in the Work Item;
   - the changed or completed work;
   - the affected production boundaries and consumers;
   - unresolved conflicts.
 - Separate facts from inferences. Do not infer added scope from a completed plan or adjacent code.
-- If the task identity, canonical spec, parent plan, or relevant evidence is ambiguous or materially inconsistent, present the evidence and ask the user before planning.
+- If the task identity, canonical spec, parent plan, or relevant evidence is ambiguous or materially inconsistent, present the evidence and ask the dev before planning.
 
-## Resolve and approve the delta
+## Decide the delta
 
-- **Clarify with `grilling` and the owner-approval contract** (skill `plan-task`, `references/owner-approval.md`): go through the changed behavior, acceptance criteria, boundaries, and exceptions one user decision at a time, and batch owner-class decisions (scope, public contract, release, ADR) into one approval request. Bring repository evidence and a recommendation. Reuse approved decisions unless this delta reopens them.
+- **Decide with the dev:** go through the changed behavior, acceptance criteria, boundaries, and exceptions one decision at a time, with repository evidence and a recommendation, following the decision record of skill `plan-task` (`references/decisions.md`). Reuse earlier decisions from the Work Item unless this delta reopens them.
 - **Use `domain-modeling` only when needed:** only when the delta changes terminology, domain invariants, responsibilities, or architecture. Test those choices against the glossary, the code, and concrete scenarios.
   - Do not force an ADR for local fixes or UI-only changes.
-  - Do not decide an ADR or write the glossary or ADR as a side effect. Present any proposed change for owner agreement and separate authorization.
-- **Draft the delta for review** before treating it as approved. The user accepts it; its owner-class items need the owner's approval through the batched request:
+  - Do not write the glossary or an ADR as a side effect; propose the change to the dev first.
+- **Draft the delta for the dev's review** before treating it as accepted:
   - Preserve every still-applicable original AC.
   - Identify added, changed, superseded, and reopened ACs, with the rationale for each.
   - Include before/after behavior, scope, non-goals, affected consumers and state, the applicable contract, transaction, concurrency and retry risks, and unresolved decisions.
-- **Limit external writes:**
-  - Do not update the canonical spec's content (ACs, scope) or the Azure Boards description until the owner approves the wording through the batched request and the user separately authorizes that write.
-  - The "Decisões" section of the Work Item and of the mirror `backlog/tasks` file is the exception. With the user's authorization, record every delta decision there (user and owner-class, pending included), following the owner-approval contract, with stable IDs that continue the existing numbering.
+- **External writes after the dev confirms the text:**
+  - update the canonical spec and the Azure Boards item;
+  - record every delta decision in the Work Item's "Decisões do dev" section and its mirror, continuing the existing ID numbering.
   - Do not create a WI by default. If governance requires one, stop and explain why.
 
 ## Build the new plan
 
-After the delta is accepted, write a new plan in the format `/execute` consumes. The user accepts the delta. Each owner-class item is either approved by the owner or pre-approved by the user and recorded as `pendente do owner` in the Work Item's "Decisões" section, which is the source of truth (the mirror copies it). The plan's "Decisões (não reabrir)" may copy the decisions that bind the executor, with their IDs; on divergence, the Work Item wins. On the user's request, open a draft PR with the committed plan, the mirror, and the approval table. When the owner answers, update the states in the Work Item and the mirror (a new commit) and adjust the plan if a decision changed.
+After the dev accepts the delta, write a new plan in the format `/execute` consumes. The plan's "Decisões (não reabrir)" may copy the decisions that bind the executor, with their IDs; on divergence, the Work Item wins.
 
 Preserve the original spec, plan, statuses, and history. Record:
 - the canonical spec and parent-plan links;
@@ -67,7 +67,7 @@ Do not:
 - execute slices or run full gates;
 - deploy, act on PRs, commit, or push.
 
-The next step is `/execute <new-plan-path>` after the delta plan is accepted and no decision is `pendente do owner`. Prefer the explicit path, because a WI lookup may be ambiguous.
+The next step is `/execute <new-plan-path>` after the dev accepts the delta plan. Prefer the explicit path, because a WI lookup may be ambiguous.
 
 ## Handoff
 
@@ -75,9 +75,9 @@ Return:
 - the accepted delta and the plan path;
 - the baseline and source evidence;
 - scope and non-goals;
-- user decisions and owner approvals, with who approved, when, and through which channel;
+- the decisions recorded in the Work Item, with their IDs;
 - the reviewer's disposition;
 - verification limits;
 - the next action.
 
-State any pending decision or approval that still blocks progress.
+State any open decision that still blocks progress.

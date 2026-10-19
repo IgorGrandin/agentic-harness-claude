@@ -44,7 +44,7 @@ Prática já estabelecida neste projeto (quase toda entrada de `MEMORY.md` regis
 - **Rerodar o gate é exceção, não rotina.** O ADR-0037 §4 é explícito: a auditoria **não repete a suíte do Cursor**. Ela audita por leitura do diff + prova com controle discriminante. Você só re-executa a suíte em **três gatilhos, e só neles**:
   1. o relatório **contradiz o diff** (contagem, projetos, ou alegação incompatível com o código lido);
   2. o diff cria **risco comportamental** numa das classes listadas em `.cursor/rules/110-cursor-workflow.mdc` §"Gate de entrega" (o bullet "A auditoria não repete o gate") — **abra a rule a cada `/revise`**, a lista mora lá e não é copiada aqui. A classe tem de ser demonstrada pela leitura do diff: migration, `DbContext`, transação ou `*Endpoints*.cs` **não** disparam só por localização ou sufixo. Na dúvida não resolvida, classifique como gatilho e registre o motivo;
-  3. o **owner pede**.
+  3. o **dev pede**.
 
   > Corrigido em 2026-10-03: este item listava "persistência, RLS, authz ou composição de host", o gatilho antigo que a `110` restringiu em 2026-09-14 (ADR-0037; disparava em ~75% dos diffs). A cópia ficou quase três semanas desatualizada, e é por isso que agora o item aponta para a rule em vez de repeti-la.
 
@@ -106,9 +106,9 @@ Mais três perguntas — nenhuma respondida por suíte verde, e por isso ningué
 
 ### Resíduo decidido não é achado
 
-Antes de reportar qualquer achado, faça diff contra o **registro canônico de resíduos**: a tabela "Resíduos e decisões" do build-log do passo e a seção de status/histórico da ADR do lote. Um resíduo que está lá **com decisão do owner** (adiado, aceito, encaminhado para outro item) **não volta ao relatório como achado** — renumerá-lo a cada passada é o que transforma auditoria em órbita. Ele só reabre com **evidência nova, citada explicitamente** (novo dado empírico, mudança de custo, dependência que apareceu). Sem evidência nova, a menção certa é uma linha de confirmação: "resíduo X segue como decidido".
+Antes de reportar qualquer achado, faça diff contra o **registro canônico de resíduos**: a tabela "Resíduos e decisões" do build-log do passo e a seção de status/histórico da ADR do lote. Um resíduo que está lá **com decisão registrada** (adiado, aceito, encaminhado para outro item) **não volta ao relatório como achado** — renumerá-lo a cada passada é o que transforma auditoria em órbita. Ele só reabre com **evidência nova, citada explicitamente** (novo dado empírico, mudança de custo, dependência que apareceu). Sem evidência nova, a menção certa é uma linha de confirmação: "resíduo X segue como decidido".
 
-O espelho disso na saída: **achado novo que o owner decidir adiar entra na tabela de resíduos ao fechar a rodada** (passo 5) — é isso que faz a próxima auditoria começar do saldo, não do zero.
+O espelho disso na saída: **achado novo que o dev decidir adiar entra na tabela de resíduos ao fechar a rodada** (passo 5) — é isso que faz a próxima auditoria começar do saldo, não do zero.
 
 ## 3. Veredicto
 
@@ -124,7 +124,7 @@ Desenhe um plano novo — artefato, nunca código — e salve em `.cursor/plans/
 
 ## 5. Se aprovado
 
-Só depois que você (owner) confirmar o veredicto (conforme, ou conforme-com-ressalvas aceito), atualize a documentação de governança no formato já em uso — não invente formato novo:
+Só depois que o dev confirmar o veredicto (conforme, ou conforme-com-ressalvas aceito), atualize a documentação de governança no formato já em uso — não invente formato novo:
 
 - Build-log da release corrente: `docs/releases/<release>/build-log/step-<slug>.md`, no formato já estabelecido (cabeçalho Status/ADR/Plano + bloco `## Validação`).
 
@@ -161,7 +161,7 @@ Duas distinções que evitam burocracia inútil:
 
 ⚠️ **Nenhuma sentinela pega isto.** As duas afirmações erradas acima não são mecanizáveis: uma é comportamental (só se checa rodando), a outra é config que vive fora do repositório. Este é o único controle desta skill que depende inteiramente de disciplina — e por isso está escrito, em vez de suposto.
 
-Se a auditoria revelar que a mudança merece uma ADR e ainda não tem uma, não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` (difícil de reverter + surpreendente sem contexto + resultado de trade-off real) e proponha ao owner.
+Se a auditoria revelar que a mudança merece uma ADR e ainda não tem uma, não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` (difícil de reverter + surpreendente sem contexto + resultado de trade-off real) e proponha ao dev.
 
 ## 6. Fechar o relógio e descartar o relatório
 

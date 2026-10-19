@@ -1,7 +1,7 @@
 ---
 name: audit-task
-description: Audita a implementação de um desenvolvedor do time contra a spec da task (colada pelo owner) e os gates reais — mesma disciplina do /revise, adaptada para PRs de terceiros. Nunca edita o código do desenvolvedor; produz veredicto e achados prontos para comentário de PR. Use quando o owner pedir "/audit-task" para revisar a entrega de um dev antes de aprovar o PR.
-argument-hint: "branch ou nº do PR a auditar (a spec da task é colada pelo owner na conversa)"
+description: Audita a implementação de um desenvolvedor do time contra a spec da task (colada pelo usuário) e os gates reais — mesma disciplina do /revise, adaptada para PRs de terceiros. Nunca edita o código do desenvolvedor; produz veredicto e achados prontos para comentário de PR. Use quando o usuário pedir "/audit-task" para revisar a entrega de um dev antes de aprovar o PR.
+argument-hint: "branch ou nº do PR a auditar (a spec da task é colada pelo usuário na conversa)"
 disable-model-invocation: true
 ---
 
@@ -9,8 +9,8 @@ Audita a implementação de um desenvolvedor do time contra a spec da task, com 
 
 ## 1. Reunir os dois insumos
 
-- **A spec da task**: leia `backlog/tasks/<id>-<slug>.md` no repositório — é a referência canônica (ADR-0039 §1), não o Work Item. Se não souber o nome exato do arquivo, procure por ID do Work Item ou pelo nome da branch em `backlog/tasks/`. Só peça ao owner para colar o texto se o arquivo genuinamente não existir (spec pré-ADR-0039, ou exceção) — e se colar, sugira criar o arquivo retroativamente para a próxima auditoria não repetir a colagem.
-- **O alvo**: branch ou PR indicado. Se for um número de PR, busque direto via MCP — `repo_pull_request` com `action: "get"`, `pullRequestId`, `repositoryId: "brixbroker"`, `project: "brixbroker"` e `includeChangedFiles: true` — para identificar a branch de origem e os arquivos tocados sem depender do owner para achar a branch manualmente; em seguida `git fetch` + `git diff <base>..<branch>` localmente para ver o diff completo de verdade — não leia só a descrição do PR nem confie só no resumo do MCP.
+- **A spec da task**: leia `backlog/tasks/<id>-<slug>.md` no repositório — é a referência canônica (ADR-0039 §1), não o Work Item. Se não souber o nome exato do arquivo, procure por ID do Work Item ou pelo nome da branch em `backlog/tasks/`. Só peça ao usuário para colar o texto se o arquivo genuinamente não existir (spec pré-ADR-0039, ou exceção) — e se colar, sugira criar o arquivo retroativamente para a próxima auditoria não repetir a colagem.
+- **O alvo**: branch ou PR indicado. Se for um número de PR, busque direto via MCP — `azure-devops:repo_pull_request` com `action: "get"`, `pullRequestId`, `repositoryId: "brixbroker"`, `project: "brixbroker"` e `includeChangedFiles: true` — para identificar a branch de origem e os arquivos tocados sem depender do usuário para achar a branch manualmente; em seguida `git fetch` + `git diff <base>..<branch>` localmente para ver o diff completo de verdade — não leia só a descrição do PR nem confie só no resumo do MCP.
 
 Se faltar um dos dois, pare e peça — não presuma critério de aceite a partir do nome da branch ou do título do PR.
 
@@ -48,6 +48,6 @@ Diferente do `/revise` (que só atualiza documentação interna, já que o "impl
 
 ## 6. Se aprovado
 
-Só depois do owner confirmar o veredicto, atualize a documentação de governança no formato já em uso (mesmo passo do `/revise` item 5): build-log da release corrente, linha-ponteiro em `CLAUDE.md` §8 se fechar/avançar um ADR, `scope.md`/`release-map.md` se fechar item de escopo, `MEMORY.md`.
+Só depois do usuário confirmar o veredicto, atualize a documentação de governança no formato já em uso (mesmo passo do `/revise` item 5): build-log da release corrente, linha-ponteiro em `CLAUDE.md` §8 se fechar/avançar um ADR, `scope.md`/`release-map.md` se fechar item de escopo, `MEMORY.md`.
 
-Se a auditoria revelar necessidade de ADR novo, não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` e proponha ao owner.
+Se a auditoria revelar necessidade de ADR novo, não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` e proponha ao usuário.

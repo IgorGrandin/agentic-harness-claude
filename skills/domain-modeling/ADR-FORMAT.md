@@ -9,14 +9,14 @@ ADRs vivem em `docs/adr/` e usam numeração sequencial: `0001-slug.md`, `0002-s
 
 | Campo | Valor |
 |-------|--------|
-| **Status** | {Proposto \| Aceito \| Superado por ADR-NNNN} ({data; nota de ratificação do owner, se houver}) |
+| **Status** | {Proposto \| Aceito \| Superado por ADR-NNNN} ({data; nota de ratificação do dev, se houver}) |
 | **Data** | {AAAA-MM-DD} |
 | **Release** | {release/fatia de release a que se aplica, ou "Decisão de plataforma"} |
-| **Decisores** | Produto / Arquitetura (owner) |
+| **Decisores** | Produto / Arquitetura (dev) |
 
 ## Contexto
 
-{O que motivou a decisão: estado atual, tensão ou lacuna, cenário trazido pelo owner. 1 parágrafo curto costuma bastar.}
+{O que motivou a decisão: estado atual, tensão ou lacuna, cenário trazido pelo dev. 1 parágrafo curto costuma bastar.}
 
 ## Decisão
 
