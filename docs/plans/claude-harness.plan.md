@@ -19,7 +19,7 @@ congelado: não é apagado e serve de backup e rollback.
 | T2 | O v4 é congelado, não apagado. As instalações do Codex (`~/.codex`, `~/.agents`, `~/.agentic-harness`) não são tocadas | owner + este plano |
 | T3 | As skills do BrixBroker ficam fora do repo do produto, em `~/.claude/skills/`, exclusivas do owner | ADR-0039 do BrixBroker (`docs/adr/0039-...md:64-66`) |
 | T4 | Root: Sonnet 5.5 em effort medium; Opus ou effort high em slices difíceis | owner, 2026-10-15 |
-| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `opus`/high; verifier `sonnet`/medium; architect `opus`/high → `opus`/xhigh (Opus é o teto; Fable proibido) | recomendação Anthropic + owner, 2026-10-15 |
+| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `sonnet`/medium (revisado em 2026-10-21; o Opus fica na root, para planejar, e no architect_escalation); verifier `sonnet`/medium; architect `opus`/high → `opus`/xhigh (Opus é o teto; Fable proibido) | recomendação Anthropic + owner, 2026-10-15 |
 | T6 | Os nomes das skills não mudam (`/plan-task`, `/revise`...), porque o ADR-0039 e os hábitos do owner os citam | ADR-0039 |
 
 ## Decisões abertas (com recomendação)
@@ -29,7 +29,7 @@ congelado: não é apagado e serve de backup e rollback.
 | A1 | Distribuição | Repo git + script que sincroniza para `~/.claude/` (sem prefixo; inclui o `CLAUDE.md`) | Plugin: as skills ganham prefixo (`/brix:plan-task`) e o plugin não carrega `CLAUDE.md`. Só compensa para distribuir a outras pessoas, o que o ADR-0039 exclui |
 | A2 | Nome e local do repo | **Decidido pelo owner:** `Documents/Projects/agentic-harness-claude`, projeto separado | — |
 | A5 | Destino das instalações do Codex (`~/.codex`, `~/.agents`, `~/.agentic-harness`) | Arquivar em zip e não apagar. `~/.agents/skills` tem skills que não vieram do v4 (automate, canvas, create-hook...) | Apagar depois de confirmar que o Codex não será mais usado |
-| A3 | Revisão no `/execute` | A root verifica cada slice no próprio loop; uma passada do reviewer Opus high no diff integrado; o verifier roda o gate final no commit | Reviewer e verifier por slice, como no v4 (custo maior; a Anthropic desaconselha subagentes para verificação pequena) |
+| A3 | Revisão no `/execute` | A root verifica cada slice no próprio loop; uma passada do reviewer Sonnet medium no diff integrado; o verifier roda o gate final no commit | Reviewer e verifier por slice, como no v4 (custo maior; a Anthropic desaconselha subagentes para verificação pequena) |
 | A4 | Hooks na v1 | Nenhum; reavaliar depois do primeiro mês de uso | Hook de Stop ou de PreToolUse para o gate em árvore limpa |
 
 ## Política de delegação (fonte única: o `CLAUDE.md` global)

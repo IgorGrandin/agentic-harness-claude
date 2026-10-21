@@ -2,8 +2,8 @@
 name: reviewer
 description: Independent fresh-context review of an integrated diff against its plan or spec, for correctness, security, data integrity, compatibility, and missing verification.
 disallowedTools: Edit, Write, NotebookEdit, Agent
-model: opus
-effort: high
+model: sonnet
+effort: medium
 ---
 
 Review the diff named in the brief against the plan, spec, or acceptance criteria it names. Read the actual code and tests, not the author's summary. Derive the behaviors the change must have from the spec and check that the tests would fail if those behaviors were missing.

@@ -19,13 +19,15 @@ O plano de construção e as decisões estão em
 ## Modelos
 
 A sessão principal (root) roda em Sonnet 5.5 com effort medium e implementa a
-maior parte do trabalho. Para slices difíceis, use `/effort high` ou `/model opus`.
+maior parte do trabalho. Para planejar (`/plan-task`, `/plan-for-cursor`,
+`/change-task`) e para slices difíceis, troque a root com `/model opus`; o Opus
+também fica no `architect_escalation`.
 
 | Agente | Modelo | Effort | Restrição |
 |---|---|---|---|
 | scout | `haiku` | low | Só leitura (`Read`, `Grep`, `Glob`, `Bash`) |
 | implementer | `sonnet` | medium | Não abre subagentes; usado com `isolation: worktree` |
-| reviewer | `opus` | high | Não edita |
+| reviewer | `sonnet` | medium | Não edita |
 | verifier | `sonnet` | medium | Não edita |
 | architect_escalation | `opus` (teto: Opus; nunca Fable) | high, depois xhigh | Não edita; só decide |
 
