@@ -37,6 +37,7 @@ Do not copy those files here. The deltas below are the only intended differences
 | Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
 | Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against that commit (steps 6–7) |
 | Completeness check | items 1–4 and 6 before the commit, 5 after | items 1–3 before the commit; 4–6 after the gate (steps 6 and 8) |
+| Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add` the implementation first, then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
 | Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
 | Metrics | `rodadas.csv` | `rodadas.csv` plus `execute-rodadas.csv` (step 9) |
 
@@ -110,6 +111,7 @@ Run each such subagent with `isolation: worktree` and brief it with the slice, i
 For each slice:
 - run the focused checks;
 - keep the literal red output for the elected discriminant;
+- when a mutant round applies (`execute.md` §"Rodadas de mutante"), stage the slice's implementation with `git add` **before** applying the mutant. Revert only with `git checkout -- <file>`, which restores from the index, so the staged implementation survives (without the stage, the checkout also discards the implementation). Because the file stays listed as `M ` in `git status --porcelain`, confirm the revert with `git diff --quiet -- <file>` (working tree equals index) instead of the porcelain check in `execute.md`. Never restore from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
 - fill the slice's rows of the test traceability table from `execute.md` §5, one row per plan test ID, with the assertion's `path:line`, the label, and the literal red for each `[visto]`;
 - record changed paths, results, and elapsed time.
 
@@ -159,7 +161,7 @@ Confirm that `git rev-parse HEAD` is the new commit and that `git status --porce
 4. Send the gate to the `verifier` subagent with:
    - the commit SHA;
    - `devops/scripts/run-gate.ps1 -OutDir <GateOutDir>`;
-   - the project list.
+   - the project list, passed as an in-process splat (`$splat = @{ BackendProjects = @('a.csproj','b.csproj'); OutDir = '<GateOutDir>' }; & .\devops\scripts\run-gate.ps1 @splat`) or with `-File` (a comma list arrives as one string, which the script splits; valid since `c71b5c01`).
 
    It runs the gate in the background and checks `HEAD` and the clean tree before and after.
 5. Read the manifest. The evidence is valid only when `status` is `VALID`, the manifest `HEAD` equals the commit, and the tree stayed clean. The gate passed only when `result` is `GREEN`: `status=VALID` with `result=RED` is a valid red gate. Then run `devops/scripts/run-gate.ps1 -FingerprintOnly` and confirm the output equals the manifest's `gateTreeFingerprint`.
