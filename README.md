@@ -28,7 +28,7 @@ também fica no `architect_escalation`.
 | scout | `haiku` | low | Só leitura (`Read`, `Grep`, `Glob`, `Bash`) |
 | implementer | `sonnet` | medium | Não abre subagentes; usado com `isolation: worktree` |
 | reviewer | `sonnet` | medium | Não edita |
-| verifier | `sonnet` | medium | Não edita |
+| verifier | `haiku` | high | Não edita |
 | architect_escalation | `opus` (teto: Opus; nunca Fable) | high, depois xhigh | Não edita; só decide |
 
 Os modelos usam aliases, então acompanham a versão mais nova de cada família.
