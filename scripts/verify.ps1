@@ -63,7 +63,7 @@ $expectedAgents = @{
     scout                = @{ model = 'haiku';  effort = 'low';    tools = 'Read, Grep, Glob, Bash' }
     implementer          = @{ model = 'haiku';  effort = 'high';   disallow = @('Agent') }
     reviewer             = @{ model = 'sonnet'; effort = 'medium';  disallow = @('Edit', 'Write', 'NotebookEdit', 'Agent') }
-    verifier             = @{ model = 'sonnet'; effort = 'medium'; disallow = @('Edit', 'Write', 'NotebookEdit', 'Agent') }
+    verifier             = @{ model = 'haiku';  effort = 'high';   disallow = @('Edit', 'Write', 'NotebookEdit', 'Agent') }
     architect_escalation = @{ model = 'opus';   effort = 'high';   disallow = @('Edit', 'Write', 'NotebookEdit') }
 }
 foreach ($name in $expectedAgents.Keys) {
