@@ -1,6 +1,6 @@
 ---
 name: plan-for-cursor
-description: Aplica o checklist de qualidade a um `.cursor/plans/*.plan.md` que o Cursor ou o /execute vai executar. Use ao produzir qualquer plano — inclusive os planos de correção do `/revise` e do `/review-pr`.
+description: Aplica o checklist de qualidade a um `.cursor/plans/*.plan.md` que o Cursor ou o /my-execute vai executar. Use ao produzir qualquer plano — inclusive os planos de correção do `/revise` e do `/review-pr`.
 ---
 
 Um plano é executado por outro agente, sem a conversa que o originou. Ele acerta o que está escrito e improvisa o que está subentendido — e improviso em plano é onde nascem os defeitos caros.
@@ -41,7 +41,7 @@ Três famílias, todas com o mesmo remédio:
 ⚠️  pwsh no agente Linux: NÃO VERIFICADO — por isso o executor fica fora do CI nesta fatia
 ```
 
-**Por que o rótulo basta e a certeza não é exigida:** o custo de eu estar errado sem rótulo é um ciclo inteiro de `/execute` + `/revise`. Com rótulo, o executor confere em trinta segundos e reporta. **A meta não é acertar sempre — é não fazer o executor pagar pela minha inferência.**
+**Por que o rótulo basta e a certeza não é exigida:** o custo de eu estar errado sem rótulo é um ciclo inteiro de `/my-execute` + `/revise`. Com rótulo, o executor confere em trinta segundos e reporta. **A meta não é acertar sempre — é não fazer o executor pagar pela minha inferência.**
 
 > Casos (2026-09-02/03): errei a sintaxe do Path filter **duas vezes**, e nas duas o executor corrigiu citando a documentação. Afirmei em ADR **e** build-log que `Architecture.Tests` bloqueava a Fase 4, a partir de leitura de código — refutado em uma execução de dois minutos que eu podia ter feito antes de escrever. Justifiquei o local do `run-gate.ps1` com "a Fase 4 reusa o script", premissa que nunca verifiquei e que acabou falsa na prática.
 >
@@ -77,16 +77,16 @@ Para **cada** teste que o plano pede, faça as três coisas, nesta ordem:
 
 O comando é barato e existe sempre: um `--filter` no teste vizinho, um `curl` no host de teste, uma variável de ambiente apontando para o vazio. Se não rodar, **escreva no plano o que você espera que saia e marque como não verificado** — o passe 2 vale aqui inteiro.
 
-> Casos (2026-09-02), os dois mais caros que já produzi, um ciclo `/execute` + `/revise` cada:
+> Casos (2026-09-02), os dois mais caros que já produzi, um ciclo `/my-execute` + `/revise` cada:
 >
 > 1. Exigi `status < 500` no controle positivo de authz. Errado: um 500 do handler **prova** que a policy admitiu a requisição. O critério transformou um smoke de autorização em teste ponta-a-ponta, exigindo banco, tenant e seed para 17 rotas — **19 vermelhos**.
 > 2. Corrigi para `NotBe(404)`, mirando o buraco real (rota inexistente devolve 404 antes da authz). Também errado: 404 **também** vem do handler, por entidade inexistente. Dois 404 que o HTTP não distingue.
 >
 > Nos dois eu estava tentando espremer uma propriedade **estática** — "a rota existe" — numa asserção de **status de resposta**. Ela não cabe ali; cabe num Fact que lê a tabela de rotas, e a forma para isso **já existia em quatro arquivos do repositório**. Trinta segundos provocando a condição teriam mostrado que 500 e 404 chegam do handler, e os dois ciclos não teriam acontecido.
 
-**(e) Eleja o discriminante da fatia — nomeadamente.** Entre os testes que o plano pede, diga **qual** é aquele cujo vermelho prova a fatia, e escreva no plano: *"discriminante da fatia: `<teste>` — o `/execute` tem de reportá-lo como `[visto]`"*. O contrato do relatório (`.cursor/commands/execute.md` §Ciclo TDD) exige que esse teste venha com o mutante **aplicado e rodado**, não com afirmação de que falharia. Se você não conseguir eleger um — porque a fatia é só cobertura, sem propriedade nova —, escreva isso, e nenhum `[visto]` fica devido.
+**(e) Eleja o discriminante da fatia — nomeadamente.** Entre os testes que o plano pede, diga **qual** é aquele cujo vermelho prova a fatia, e escreva no plano: *"discriminante da fatia: `<teste>` — o `/my-execute` tem de reportá-lo como `[visto]`"*. O contrato do relatório (`.cursor/commands/execute.md` §Ciclo TDD) exige que esse teste venha com o mutante **aplicado e rodado**, não com afirmação de que falharia. Se você não conseguir eleger um — porque a fatia é só cobertura, sem propriedade nova —, escreva isso, e nenhum `[visto]` fica devido.
 
-> Por que o plano tem de eleger, e não o executor: quem escolhe o próprio discriminante escolhe o que já sabe que passa. Medido em 2026-09-09 sobre 46 relatórios de `/execute`: teste não-discriminante é a classe dominante de rodada de correção, e ela sobrevive a este passe inteiro quando o campo do relatório aceita raciocínio.
+> Por que o plano tem de eleger, e não o executor: quem escolhe o próprio discriminante escolhe o que já sabe que passa. Medido em 2026-09-09 sobre 46 relatórios de `/my-execute`: teste não-discriminante é a classe dominante de rodada de correção, e ela sobrevive a este passe inteiro quando o campo do relatório aceita raciocínio.
 
 Confira também que **o harness deixa a condição acontecer** — um teste pode ser impossível por construção do fixture.
 
@@ -138,7 +138,7 @@ Plano não commitado é sobrescrito pelo primeiro `git merge` e some sem aviso. 
 
 ### 10. A cápsula se basta — caminho inteiro, e nenhum ponteiro que cresça
 
-O plano é o prefixo que o agente **re-paga em cada chamada de ferramenta da sessão**. Medido em 2026-09-17 numa sessão de `/execute` de 35 minutos: **200 chamadas de ferramenta**, ~42k de prefixo cada, contra um briefing fixo de ~40k. Cada quilobyte no plano é multiplicado por duas centenas. Duas consequências, ambas obrigatórias:
+O plano é o prefixo que o agente **re-paga em cada chamada de ferramenta da sessão**. Medido em 2026-09-17 numa sessão de `/my-execute` de 35 minutos: **200 chamadas de ferramenta**, ~42k de prefixo cada, contra um briefing fixo de ~40k. Cada quilobyte no plano é multiplicado por duas centenas. Duas consequências, ambas obrigatórias:
 
 **(a) Caminho completo a partir da raiz do repo — nunca abreviado, nunca com reticências.** Escreva `platform/frontend/libs/layout/src/lib/models/app-shell.models.ts`, não `libs/layout/.../app-shell.models.ts`. Um caminho que o agente precisa *procurar* vira grep, vira turno, vira mais uma releitura do prefixo inteiro. Reticências dentro de um caminho são defeito, não abreviação.
 

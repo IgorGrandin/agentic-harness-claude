@@ -39,7 +39,7 @@ Use `/change-task <WI-number|spec-path|plan-path>` with the requested change to 
 
 ## Build the new plan
 
-After the dev accepts the delta, write a new plan in the format `/execute` consumes. The plan's "Decisões (não reabrir)" may copy the decisions that bind the executor, with their IDs; on divergence, the Work Item wins.
+After the dev accepts the delta, write a new plan in the format `/my-execute` consumes. The plan's "Decisões (não reabrir)" may copy the decisions that bind the executor, with their IDs; on divergence, the Work Item wins.
 
 Preserve the original spec, plan, statuses, and history. Record:
 - the canonical spec and parent-plan links;
@@ -67,7 +67,7 @@ Do not:
 - execute slices or run full gates;
 - deploy, act on PRs, commit, or push.
 
-The next step is `/execute <new-plan-path>` after the dev accepts the delta plan. Prefer the explicit path, because a WI lookup may be ambiguous.
+The next step is `/my-execute <new-plan-path>` after the dev accepts the delta plan. Prefer the explicit path, because a WI lookup may be ambiguous.
 
 ## Handoff
 

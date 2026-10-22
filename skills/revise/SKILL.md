@@ -1,7 +1,7 @@
 ---
 name: revise
-description: Audita um ciclo de /execute (do Cursor ou do Claude Code) contra o código e os gates reais, usando o relatório de execução como evidência complementar quando existir; aprova ou desenha um plano de correção e atualiza a documentação de governança quando aprovado. Também roda como etapa pre-gate e post-gate do /execute. Use quando o usuário pedir "/revise".
-argument-hint: "slug ou data do relatório (opcional — padrão: o mais recente); 'pre-gate' ou 'post-gate' quando chamado pelo /execute"
+description: Audita um ciclo de /my-execute (do Cursor ou do Claude Code) contra o código e os gates reais, usando o relatório de execução como evidência complementar quando existir; aprova ou desenha um plano de correção e atualiza a documentação de governança quando aprovado. Também roda como etapa pre-gate e post-gate do /my-execute. Use quando o usuário pedir "/revise".
+argument-hint: "slug ou data do relatório (opcional — padrão: o mais recente); 'pre-gate' ou 'post-gate' quando chamado pelo /my-execute"
 disable-model-invocation: true
 ---
 
@@ -26,9 +26,9 @@ Leia o documento inteiro.
 
 **Sem relatório narrativo não é motivo para parar.** O Cursor às vezes entrega só o relatório de gate, sem narrativa. Nesse caso, depois de registrar o timestamp (invariante 1), identifique o plano aprovado em `.cursor/plans` e o alvo da execução pelo argumento, pela conversa, por `git status`, `git log` e pelo diff real. Se o plano e o commit ou diff alterado forem identificáveis, siga com a auditoria de qualidade de código contra o plano e o código real. Trate relatório de gate como evidência só sobre gates; não infira qualidade de código nem fatos ausentes a partir dele. Se não houver evidência de gate, registre como não verificada e entregue a revisão de código mesmo assim. Reserve `sem-relatorio` para quando, depois de olhar o repositório, nenhum alvo de execução nem diff puder ser identificado; só então peça o plano ou o commit que faltam.
 
-### Modos chamados pelo `/execute`
+### Modos chamados pelo `/my-execute`
 
-Quando o `/execute` chamar esta skill com `pre-gate` ou `post-gate`, o escopo muda assim:
+Quando o `/my-execute` chamar esta skill com `pre-gate` ou `post-gate`, o escopo muda assim:
 
 - **Pre-gate:** audite o diff integrado na working tree e a evidência dos slices contra o plano aprovado, os critérios de aceite e as rules do projeto. Decida se está pronto para commitar e rodar o gate final. O gate final ainda não rodou: não o trate como defeito.
 - **Post-gate:** audite o diff commitado, a evidência de árvore limpa, o commit e a branch exatos, e o manifesto e o relatório do gate. Confira que o gate observou aquele commit e aquela árvore. Não exija relatório narrativo separado quando o código, o plano e a evidência de gate identificam o alvo. Não rerode gate que passou; rerode só pelos gatilhos do passo 2 ou por mudança depois do gate.
@@ -69,11 +69,11 @@ Duas coisas que só o `/revise` faz com esse gate:
 
 ### Rubrica
 
-Aplique a rubrica já existente em `docs/contexts/code-audit-mode.md` — não recrie uma nova aqui. Mas ela se divide em **dois níveis**, e confundir os dois é o que faz esta skill demorar mais que o `/execute` que ela audita.
+Aplique a rubrica já existente em `docs/contexts/code-audit-mode.md` — não recrie uma nova aqui. Mas ela se divide em **dois níveis**, e confundir os dois é o que faz esta skill demorar mais que o `/my-execute` que ela audita.
 
 #### Nível 1 — o Cursor já passou aqui: audite a afirmação, não refaça a passada
 
-O `/execute-code-review` que roda dentro do `/execute` **já** percorreu dois eixos: **Standards** (abriu o mapa da `005`, abriu as rules da área, conferiu o diff contra elas, mais o baseline de smells) e **Spec** (requisito do plano/ADR/scope ausente ou parcial, scope creep, requisito implementado errado). Medido em 2026-09-03: **quatro dos sete itens da rubrica antiga eram essa mesma passada de novo**, e reabrir `005` + `110` + `060` + as rules de área custa ~60 KB de leitura por rodada.
+O `/my-execute-code-review` que roda dentro do `/my-execute` **já** percorreu dois eixos: **Standards** (abriu o mapa da `005`, abriu as rules da área, conferiu o diff contra elas, mais o baseline de smells) e **Spec** (requisito do plano/ADR/scope ausente ou parcial, scope creep, requisito implementado errado). Medido em 2026-09-03: **quatro dos sete itens da rubrica antiga eram essa mesma passada de novo**, e reabrir `005` + `110` + `060` + as rules de área custa ~60 KB de leitura por rodada.
 
 Então, para estes quatro:
 
@@ -82,7 +82,7 @@ Então, para estes quatro:
 - As ADRs vigentes da área foram respeitadas?
 - As rules da área foram seguidas?
 
-**o insumo é o relatório, não a releitura.** O relatório do `/execute` traz a lista das rules que o eixo Standards abriu. Sua obrigação é **conferir essa lista contra o mapa da `005`** — que rules a área do diff exige — e abrir **somente as que faltarem**. Rule que o Cursor abriu e declarou conforme vira **amostragem**: uma ou duas sondas dirigidas no diff, no mesmo espírito do controle discriminante do ADR-0037 §4. "Standards: nenhum" é afirmação a checar, não seção a regenerar.
+**o insumo é o relatório, não a releitura.** O relatório do `/my-execute` traz a lista das rules que o eixo Standards abriu. Sua obrigação é **conferir essa lista contra o mapa da `005`** — que rules a área do diff exige — e abrir **somente as que faltarem**. Rule que o Cursor abriu e declarou conforme vira **amostragem**: uma ou duas sondas dirigidas no diff, no mesmo espírito do controle discriminante do ADR-0037 §4. "Standards: nenhum" é afirmação a checar, não seção a regenerar.
 
 Três casos em que o nível 1 volta a ser passada completa, e só eles: o relatório **não lista** as rules abertas; a lista **tem buraco** em relação ao mapa da `005`; ou uma sonda **desmente** a declaração de conformidade. Nos três, diga qual disparou.
 
@@ -90,7 +90,7 @@ Três casos em que o nível 1 volta a ser passada completa, e só eles: o relat�
 
 #### Nível 2 — ninguém fez ainda: aqui você não corta nada
 
-Nenhum destes está no `/execute-code-review`, e são eles que historicamente acharam bug — papel de coordenador virando exclusivo, `SetTenantOverride` sem `SetTenant`, serviço sem chamador. **Nenhum sairia de suíte verde nem de releitura de rule.**
+Nenhum destes está no `/my-execute-code-review`, e são eles que historicamente acharam bug — papel de coordenador virando exclusivo, `SetTenantOverride` sem `SetTenant`, serviço sem chamador. **Nenhum sairia de suíte verde nem de releitura de rule.**
 
 - O relatório bate com a realidade? (`git status`, `git diff`, `git log`, e os arquivos de código realmente alterados.)
 - Os testes são adequados ao escopo?
@@ -116,7 +116,7 @@ Use o vocabulário já definido em `code-audit-mode.md`: **conforme** / **confor
 
 ## 4. Se correção for necessária
 
-Desenhe um plano novo — artefato, nunca código — e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/execute` de novo.
+Desenhe um plano novo — artefato, nunca código — e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/my-execute` de novo.
 
 **Antes de entregar o plano, aplique a skill `plan-for-cursor`** — os passes e a seção obrigatória de verificações. Ela existe porque planos meus já saíram com passo impossível de executar (porta inexistente), teste rotulado com o que não prova, e gate somado por precaução.
 
@@ -171,7 +171,7 @@ Se a auditoria revelar que a mudança merece uma ADR e ainda não tem uma, não 
 data_hora_inicio;fase;slug;minutos;veredicto;gate_reexecutado;gatilho;nivel1_completo;observacao
 ```
 
-- `fase` — `revise` (o `/execute` grava `execute` no mesmo arquivo).
+- `fase` — `revise` (o `/my-execute` grava `execute` no mesmo arquivo).
 - `gate_reexecutado` — `sim`/`nao`; `gatilho` — qual dos três do passo 2 disparou, ou `-`.
 - `nivel1_completo` — `sim` quando você teve de refazer a passada de Standards/Spec por inteiro, com o motivo em `observacao` (relatório sem lista de rules, buraco na lista, ou sonda desmentida). É esse campo que mostra se a economia do nível 1 está acontecendo de verdade ou se virou letra morta.
 

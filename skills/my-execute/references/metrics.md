@@ -1,6 +1,6 @@
 # Execution metrics record
 
-Every `/execute` run writes two durable records, both under `%USERPROFILE%\.claude\brixbroker\`, never in `%TEMP%`:
+Every `/my-execute` run writes two durable records, both under `%USERPROFILE%\.claude\brixbroker\`, never in `%TEMP%`:
 
 1. **One line in `rodadas.csv`**, as the repository's `.cursor/commands/execute.md` step 7 defines: `fase=execute` and the shared header the `/revise` also writes to.
 2. **One detailed row in `execute-rodadas.csv`**, appended with `scripts/append-metrics.ps1`.

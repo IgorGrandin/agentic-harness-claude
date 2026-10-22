@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixtureRoot=Join-Path $PSScriptRoot 'fixtures/execute-resolver'
-$resolver=Join-Path $root 'skills/execute/scripts/resolve-plan.ps1'
+$resolver=Join-Path $root 'skills/my-execute/scripts/resolve-plan.ps1'
 function Require([bool]$Condition,[string]$Message){if(-not $Condition){throw $Message}}
 $temp=Join-Path ([IO.Path]::GetTempPath()) "execute-resolver-$([Guid]::NewGuid().ToString('N'))"
 $plans=Join-Path $temp 'plans'; New-Item -ItemType Directory $plans -Force|Out-Null

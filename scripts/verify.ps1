@@ -51,7 +51,7 @@ foreach ($file in $markdown) {
 }
 
 # AC2 - workflow skills keep manual-only invocation and their argument hints.
-$manualOnly = @('audit-task', 'change-task', 'execute', 'handoff', 'plan-task', 'review-pr', 'revise', 'spec-task', 'takeover')
+$manualOnly = @('audit-task', 'change-task', 'my-execute', 'handoff', 'plan-task', 'review-pr', 'revise', 'spec-task', 'takeover')
 foreach ($name in $manualOnly) {
     $fm = Get-Frontmatter (Join-Path $root "skills/$name/SKILL.md")
     if ((Get-Field $fm 'disable-model-invocation') -ne 'true') { Fail "AC2: $name lost disable-model-invocation" }
@@ -61,7 +61,7 @@ foreach ($name in $manualOnly) {
 # AC4 - agent model, effort and restrictions.
 $expectedAgents = @{
     scout                = @{ model = 'haiku';  effort = 'low';    tools = 'Read, Grep, Glob, Bash' }
-    implementer          = @{ model = 'sonnet'; effort = 'medium'; disallow = @('Agent') }
+    implementer          = @{ model = 'haiku';  effort = 'high';   disallow = @('Agent') }
     reviewer             = @{ model = 'sonnet'; effort = 'medium';  disallow = @('Edit', 'Write', 'NotebookEdit', 'Agent') }
     verifier             = @{ model = 'sonnet'; effort = 'medium'; disallow = @('Edit', 'Write', 'NotebookEdit', 'Agent') }
     architect_escalation = @{ model = 'opus';   effort = 'high';   disallow = @('Edit', 'Write', 'NotebookEdit') }
@@ -108,7 +108,7 @@ else {
         if (-not $decisionsText.Contains($field)) { Fail "Decision record lost '$field'" }
     }
 }
-foreach ($name in @('plan-task', 'spec-task', 'change-task', 'execute')) {
+foreach ($name in @('plan-task', 'spec-task', 'change-task', 'my-execute')) {
     if (-not (Read-Text (Join-Path $root "skills/$name/SKILL.md")).Contains('decisions.md')) { Fail "$name does not reference the decision record" }
 }
 # The dev makes every decision: no owner-approval machinery may come back into skill instructions.
@@ -119,7 +119,7 @@ foreach ($file in Get-ChildItem (Join-Path $root 'skills') -Recurse -File -Filte
     }
 }
 # /execute consults decisions in the Work Item and reads the gate's result field.
-$executeText = Read-Text (Join-Path $root 'skills/execute/SKILL.md')
+$executeText = Read-Text (Join-Path $root 'skills/my-execute/SKILL.md')
 if (-not $executeText.Contains('in the Work Item itself')) { Fail '/execute does not consult decisions in the Work Item' }
 if (-not $executeText.Contains('### Decisions during execution')) { Fail '/execute lacks the mid-run decision step' }
 if (-not $executeText.Contains('`result` is `GREEN`')) { Fail '/execute does not read the gate manifest result field' }

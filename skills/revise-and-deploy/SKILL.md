@@ -1,13 +1,14 @@
 ---
 name: revise-and-deploy
+disable-model-invocation: true
 description: Audits a completed execution, reviews the exact local diff, validates or publishes its PR, and deploys the audited commit to Dev2 when the user authorizes the workflow. Use for an end-to-end revise-and-deploy request; ask the user to choose automatic or manual progression before starting.
 ---
 
 # Revise and deploy to Dev2
 
-Continue from a completed `/execute` result. Dev2 is the fixed deployment target. Keep the audit, local pre-review, PR validation, and deployment as distinct evidence stages. Before starting, ask the user to choose **automatic** or **manual** progression. Do not infer a mode from a general request to deploy.
+Continue from a completed `/my-execute` result. Dev2 is the fixed deployment target. Keep the audit, local pre-review, PR validation, and deployment as distinct evidence stages. Before starting, ask the user to choose **automatic** or **manual** progression. Do not infer a mode from a general request to deploy.
 
-The **implementation owner** is whoever the project rules allow to write product code. In BrixBroker, a correction always becomes a correction plan via `plan-for-cursor`, never a direct edit. That plan is then executed by the Cursor or by `/execute`, when the loaded project instructions authorize it.
+The **implementation owner** is whoever the project rules allow to write product code. In BrixBroker, a correction always becomes a correction plan via `plan-for-cursor`, never a direct edit. That plan is then executed by the Cursor or by `/my-execute`, when the loaded project instructions authorize it.
 
 - **Automatic:** the user's explicit choice authorizes the ordered workflow: audit and required gates with a report; local pre-review with a report; publish or complete PR setup and monitor every required pipeline check to a terminal result; require every check to succeed for the reviewed SHA before deployment; fix attributable in-scope failures through the implementation owner, then rerun affected gates and review the new SHA; report final pipeline evidence and any pending PR reviewer approval; revalidate and deploy that exact reviewed SHA to Dev2 without waiting for reviewer approval. Do not ask for stage-by-stage confirmation or a final deployment approval. Report the final review and pipeline state before deployment, and revalidate the SHA and evidence immediately before it.
 - **Manual:** run the audit and report, then stop and ask whether to perform the local pre-review; after that report, ask whether to publish or complete PR setup; after all required pipeline checks reach terminal results, report their outcomes and any pending PR reviewer approval. If every required check succeeded for the reviewed SHA, ask whether to deploy that exact SHA even if reviewer approval is pending; otherwise report the blocker and stop. Pending reviewer approval is status only and does not delay the deployment question. Wait for each answer before its next stage. An affirmative response to the deployment report authorizes only the SHA identified in that report; the user need not repeat the SHA.
