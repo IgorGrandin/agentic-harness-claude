@@ -26,7 +26,7 @@ também fica no `architect_escalation`.
 | Agente | Modelo | Effort | Restrição |
 |---|---|---|---|
 | scout | `haiku` | low | Só leitura (`Read`, `Grep`, `Glob`, `Bash`) |
-| implementer | `sonnet` | medium | Não abre subagentes; usado com `isolation: worktree` |
+| implementer | `haiku` | high | Não abre subagentes; usado com `isolation: worktree` |
 | reviewer | `sonnet` | medium | Não edita |
 | verifier | `haiku` | high | Não edita |
 | architect_escalation | `opus` (teto: Opus; nunca Fable) | high, depois xhigh | Não edita; só decide |
