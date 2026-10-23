@@ -223,7 +223,8 @@ Never report an earlier commit's gate as validation for a fix. Never edit code o
 
 ## 8. Report
 
-Write the report at the resolved `ReportPath`, using exactly the template from `execute.md` §5, then run completeness items 4–6 (Docker evidence, fingerprint line, gates not run). Two adjustments:
+Write the report at the resolved `ReportPath`, using exactly the template from `execute.md` §5, then run completeness items 4–6 (Docker evidence, fingerprint line, gates not run). Three adjustments:
+- **`Commit` field:** the gated commit, followed by `run base: <Execute-Base>` and the number of commits in `<run base>..<gated commit>`. The template has one field because `execute.md` makes one commit.
 - **Gate section:** the manifest `HEAD` equals the commit. Instead of the post-commit binding paragraph, record the observed `HEAD`, the branch, the clean-tree status, and the line `fingerprint pós-commit: <literal output> · igual ao do manifesto: sim|não`.
 - **Slice table:** add the per-slice table from [references/metrics.md](references/metrics.md), built from the slice commit bodies for slices done in an earlier session.
 

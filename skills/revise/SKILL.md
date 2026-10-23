@@ -24,14 +24,16 @@ Em `%TEMP%\claude-handoffs\Broker\execute-reports\`: se o usuário passou argume
 
 Leia o documento inteiro.
 
+**O alvo é a execução inteira, não o último commit.** O `/execute-ig` commita cada fatia aprovada, e cada commit de fatia termina com os trailers `Execute-Plan: <plano>`, `Execute-Base: <sha>` e `Execute-Slice: <id>`. Ache a base com `git log --format='%(trailers:key=Execute-Base,valueonly)' --grep='^Execute-Plan: <caminho do plano>$'` e audite `git diff <Execute-Base>..<commit do gate>`, nunca `git show <commit>`: ele mostra só a última fatia, ou só a correção pós-revisão. Os corpos desses commits trazem a evidência de cada fatia (rastreabilidade, vermelho literal, buscas de reuso, desvios); confira-a contra o código como confere o relatório. Sem trailers (execução do Cursor ou anterior a 2026-10-23), a base é o "Baseline antes da pré-análise" do relatório.
+
 **Sem relatório narrativo não é motivo para parar.** O Cursor às vezes entrega só o relatório de gate, sem narrativa. Nesse caso, depois de registrar o timestamp (invariante 1), identifique o plano aprovado em `.cursor/plans` e o alvo da execução pelo argumento, pela conversa, por `git status`, `git log` e pelo diff real. Se o plano e o commit ou diff alterado forem identificáveis, siga com a auditoria de qualidade de código contra o plano e o código real. Trate relatório de gate como evidência só sobre gates; não infira qualidade de código nem fatos ausentes a partir dele. Se não houver evidência de gate, registre como não verificada e entregue a revisão de código mesmo assim. Reserve `sem-relatorio` para quando, depois de olhar o repositório, nenhum alvo de execução nem diff puder ser identificado; só então peça o plano ou o commit que faltam.
 
 ### Modos chamados pelo `/execute-ig`
 
 Quando o `/execute-ig` chamar esta skill com `pre-gate` ou `post-gate`, o escopo muda assim:
 
-- **Pre-gate:** audite o diff integrado na working tree e a evidência dos slices contra o plano aprovado, os critérios de aceite e as rules do projeto. Decida se está pronto para commitar e rodar o gate final. O gate final ainda não rodou: não o trate como defeito.
-- **Post-gate:** audite o diff commitado, a evidência de árvore limpa, o commit e a branch exatos, e o manifesto e o relatório do gate. Confira que o gate observou aquele commit e aquela árvore. Não exija relatório narrativo separado quando o código, o plano e a evidência de gate identificam o alvo. Não rerode gate que passou; rerode só pelos gatilhos do passo 2 ou por mudança depois do gate.
+- **Pre-gate:** audite o diff integrado desde o `Execute-Base` (fatias já commitadas mais a working tree) e a evidência dos slices contra o plano aprovado, os critérios de aceite e as rules do projeto. Decida se está pronto para commitar e rodar o gate final. O gate final ainda não rodou: não o trate como defeito.
+- **Post-gate:** audite o diff commitado desde o `Execute-Base` até o commit do gate, a evidência de árvore limpa, o commit e a branch exatos, e o manifesto e o relatório do gate. Confira que o gate observou aquele commit e aquela árvore. Não exija relatório narrativo separado quando o código, o plano e a evidência de gate identificam o alvo. Não rerode gate que passou; rerode só pelos gatilhos do passo 2 ou por mudança depois do gate.
 
 Achado de slice volta para quem implementou o slice; a auditoria integrada continua responsável pelos efeitos entre slices. Qualquer correção de código depois do gate vira commit novo e passa o gate final de novo, nesse commit.
 
@@ -39,7 +41,7 @@ Achado de slice volta para quem implementou o slice; a auditoria integrada conti
 
 Prática já estabelecida neste projeto (quase toda entrada de `MEMORY.md` registra "gates re-rodados por Claude", "código real" auditado) — o relatório é o ponto de partida, não a fonte de verdade.
 
-- Cruze "Arquivos alterados" e o commit citado contra `git status`, `git diff` e `git log` reais.
+- Cruze "Arquivos alterados" e o commit citado contra `git status`, `git diff <base>..<commit do gate>` e `git log <base>..<commit do gate>` reais, com a base do §1. Cada fatia `completed` no plano tem o seu commit nesse intervalo; fatia sem commit é achado.
 - Leia os arquivos de código realmente alterados nos trechos relevantes — não confie só no resumo "O que foi implementado" do relatório.
 - **Rerodar o gate é exceção, não rotina.** O ADR-0037 §4 é explícito: a auditoria **não repete a suíte do Cursor**. Ela audita por leitura do diff + prova com controle discriminante. Você só re-executa a suíte em **três gatilhos, e só neles**:
   1. o relatório **contradiz o diff** (contagem, projetos, ou alegação incompatível com o código lido);
