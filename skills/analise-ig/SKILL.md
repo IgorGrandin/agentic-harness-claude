@@ -75,6 +75,7 @@ Onde os planos deste repo historicamente vazam:
 - **Contrato de API/frontend.** O plano muda contrato e não diz o que acontece com o consumidor?
 - **Reversibilidade.** Se a fatia der errado no meio, dá para parar? Migração destrutiva sem `Down`?
 - **Ambiguidade.** `todo` cujo "pronto" não é verificável ("melhorar", "ajustar", "revisar"). Todo `todo` tem critério de aceite objetivo.
+- **Reuso não verificado.** O plano manda criar artefato novo (inclusive variável de ambiente ou chave de configuração) ou manda o dev preencher uma configuração sem o bloco **Reuso** da fatia (`plan-for-cursor` passe 12), ou com "nada encontrado" sem os termos da busca. Faça você uma busca curta pelo substantivo e pelo verbo do comportamento: se achar equivalente que o plano não viu, é 🟡 com o caminho; bloco ausente sem equivalente achado também é 🟡, porque o executor vai criar às cegas. Vale também no `modo=preflight-execute`.
 
 ## 5. Eixo Oportunidades — o que ficaria melhor
 
@@ -82,7 +83,7 @@ Execute este eixo **somente no `/analise-ig` chamado diretamente pelo usuário**
 
 Não são defeitos; são melhorias que o usuário decide se quer. Rotule como opcionais e **não** as misture com os achados dos eixos 2–4.
 
-Simplificação (o plano faz em três passos o que dá em um), reuso (já existe no repo o que o plano manda criar — cite o caminho), generalidade especulativa (abstração para necessidade que ninguém pediu — corte até ela aparecer), risco a mitigar barato.
+Simplificação (o plano faz em três passos o que dá em um), reuso além do eixo 4 (o plano decidiu "criar novo" com justificativa, mas há um existente que valeria generalizar — cite o caminho), generalidade especulativa (abstração para necessidade que ninguém pediu — corte até ela aparecer), risco a mitigar barato.
 
 ## 6. Saída
 

@@ -7,7 +7,7 @@ Um plano é executado por outro agente, sem a conversa que o originou. Ele acert
 
 Este arquivo **não** repete as rules nem a definição de pronto: elas são a fonte, e cópia envelhece (`CLAUDE.md` §7). O que ele faz é obrigar a **verificar** e a **registrar o que foi verificado**.
 
-## Os onze passes, antes de entregar o plano
+## Os doze passes, antes de entregar o plano
 
 ### 1. O encanamento — abra o arquivo, não presuma
 
@@ -161,6 +161,32 @@ Abra [references/coverage-contract.md](references/coverage-contract.md) e apliqu
 
 Esta skill é a dona do contrato. As outras skills apontam para ele, e o desafio do `reviewer` roda **uma vez** por matriz inalterada.
 
+### 12. Reuso — procure antes de mandar criar
+
+O passe 1 confere que o que o plano manda **usar** existe. Este confere o contrário: que o que o plano manda **criar** ainda não existe com outro nome. O executor obedece ao verbo — "crie `XService`" vira um `XService` novo ao lado do `YService` que já fazia aquilo.
+
+Para **todo** artefato novo que o plano manda criar (tipo, método de porta, handler, endpoint, componente, pipe, helper, validador, builder ou fixture de teste, script, **variável de ambiente, chave de configuração, secret, feature flag ou parâmetro de pipeline**), e para toda configuração que o plano manda o **dev preencher**:
+
+- **(a) Procure pelo comportamento, não só pelo nome.** Grep pelo substantivo do domínio **e** pelo verbo do comportamento (`LossReason`, `formatCurrency`, `BuildOpportunity`), na superfície inteira — backend, frontend, testes e `devops/`. Nome é a coisa que mais muda entre duplicatas.
+- **Configuração tem endereço próprio.** Antes de mandar criar ou preencher uma variável, procure pelo **valor que ela carrega** (a URL, o host, o timeout, a connection string), não só pelo nome, em: `appsettings*.json`, classes `*Options`/`IOptions<>` e `Configuration[...]`/`GetValue`, `.env*`, `docker-compose*`, AppHost do Aspire, `environment.*.ts`, YAML de pipeline e referências de Key Vault. A mesma chave muda de forma entre camadas: `Smtp:Host` no `appsettings` vira `Smtp__Host` no ambiente. Se a variável já existe, o plano a reusa, e o dev não preenche nada.
+- **(b) Decida e escreva, por artefato:** **reusar** (caminho do existente), **estender** (o que muda nele e quem mais o consome) ou **criar novo** (qual candidato foi descartado e por quê; "não serve porque Z").
+- **(c) "Nada encontrado" cita a busca.** Escreva os termos procurados. Sem os termos, o executor não distingue busca feita de busca esquecida.
+
+No plano, cada fatia leva um bloco **Reuso** com uma linha por artefato novo:
+
+```markdown
+**Reuso:**
+| Artefato do plano | Busca (termos · onde) | Candidato encontrado | Decisão |
+|---|---|---|---|
+| `LossReasonValidator` | `LossReason`, `Validate.*Reason` · backend inteiro | `platform/backend/src/Crm.Application/Common/ReasonRules.cs` | estender: acrescentar regra; único consumidor é `CloseOpportunityCommand` |
+| `currency.pipe.ts` | `currency`, `formatMoney`, `Intl.NumberFormat` · `platform/frontend` | nenhum | criar novo |
+| env `WHATSAPP_API_URL` | `WhatsApp`, `graph.facebook.com` · `appsettings*.json`, `*Options`, `.env*`, AppHost, pipelines | `WhatsAppOptions.BaseUrl` (`WhatsApp__BaseUrl`) | reusar: nenhuma variável nova, nada para o dev preencher |
+```
+
+Fatia que não cria nada escreve "**Reuso:** a fatia não cria artefato novo". Estender algo compartilhado muda o write-set e pode mudar contrato: leve isso ao grafo de fatias (passe 11) e, se mexer em contrato público, ao dev.
+
+> Origem do passe (2026-10-23): o owner observou que as execuções criavam com frequência duplicatas do que o repo já tinha. O reuso só aparecia como "Oportunidade" opcional do `/analise-ig`, que o preflight do `/execute-ig` não avalia, e a revisão só procurava duplicação **dentro** do diff.
+
 ## Seção obrigatória antes das fatias: Manifesto de execução
 
 Todo plano tem um bloco `## Manifesto de execução` **antes da primeira fatia**, depois de fonte canônica, decisões e arquitetura (mesma posição que o `/plan-task` usa). O contrato é do executor: `.cursor/commands/execute.md` §pré-análise, item 3. Plano sem manifesto é 🟡 automático: o executor escreve o próprio e roda a pré-análise de novo. **O formato mora lá** (`execute.md`, linha `**Manifesto de execução:**` do modelo de relatório). Abra o arquivo e siga-o; não copie o formato para cá.
@@ -195,6 +221,7 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 | **Guarda/sentinela** (se aplicável) | **referenciadores enumerados por grep do nome da entidade, com FK × guarda-de-aplicação para cada um · sentinela mandada provocar com o identificador literal que a ADR rejeitou** | **grep citado · nome da ADR** |
 | **Cápsula** | **todo caminho completo a partir da raiz (nenhuma reticência) · nenhum ponteiro para documento maior que este plano** | **conferido** |
 | **Cobertura** | **grafo de fatias (dono, write-set, dependências, paralelismo) · matriz AC → comportamento → fronteira → teste → discriminante · dimensões de risco aplicáveis e excluídas · desafio do `reviewer` feito e achados resolvidos · vermelho observado ou limitação registrada** | **matriz no plano · achados do reviewer** |
+| **Reuso** | **todo artefato novo, inclusive variável de ambiente e chave de configuração, com busca (termos · onde), candidato e decisão reusar/estender/criar; "nada encontrado" com os termos** | **bloco Reuso de cada fatia** |
 | Contradição | passada final feita | — |
 ```
 

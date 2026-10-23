@@ -1,6 +1,6 @@
 ---
 name: execute-ig
-description: Executes an approved, committed BrixBroker implementation plan through dependency-aware slices, one independent integration review, a commit on a clean tree, and a final gate against that exact commit. Use when the dev asks for "/execute-ig <WI-number|plan-path>".
+description: Executes an approved, committed BrixBroker implementation plan through dependency-aware slices with one commit per approved slice, one independent integration review of the whole run, and a final gate against the last commit on a clean tree. Use when the dev asks for "/execute-ig <WI-number|plan-path>".
 argument-hint: "<WI-number|plan-path> (ex.: 3572 ou .cursor/plans/wi_3572_x.plan.md)"
 disable-model-invocation: true
 ---
@@ -35,8 +35,10 @@ Do not copy those files here. The deltas below are the only intended differences
 | Decisions | the plan | the Work Item's "Decisões do dev" section is the source of truth (step 1) |
 | Implementation | one executor | main session; `implementer` subagents only for parallel slices outside BrixBroker (step 4) |
 | Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
-| Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against that commit (steps 6–7) |
-| Completeness check | items 1–4 and 6 before the commit, 5 after | items 1–3 before the commit; 4–6 after the gate (steps 6 and 8) |
+| Commits | one, after the gate | one per approved slice (step 4), plus one for integration-review fixes (step 6) |
+| Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against the last commit (steps 6–7) |
+| Completeness check | items 1–4 and 6 before the commit, 5 after | items 1–3 at step 6, over the whole run; 4–6 after the gate (steps 6 and 8) |
+| Reuse | not covered | search before each new artifact; a missed equivalent is a deviation (step 4); reviewer checks the diff against the repository (step 5) |
 | Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add -- <file>` before each mutant (also for new files), then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
 | Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
 | Metrics | `rodadas.csv` | `rodadas.csv` plus `execute-rodadas.csv` (step 9) |
@@ -48,6 +50,8 @@ Shared scripts live outside the checkout. Set `$skillRoot = Join-Path $env:USERP
 Record the start timestamp (`Get-Date -Format o`) before anything else. Also record the repository root, branch, `HEAD`, plan path, and `git status --porcelain=v1 --untracked-files=all`.
 
 Start only from a clean tree. If unrelated changes exist, stop and let the dev resolve the starting state. Never stash, discard, or include them.
+
+**Run base.** The run base is the `HEAD` before the first slice commit for this plan, and steps 5 and 6 cover everything from it. Look for earlier slice commits of this plan on the branch: `git log --format='%H%n%B' --grep='^Execute-Plan: <plan path>$'`. If there are none, the run base is the `HEAD` recorded above. If there are, this is a resumed run: the run base is the `Execute-Base` trailer of those commits (same command with `--format='%(trailers:key=Execute-Base,valueonly)'`), and their bodies hold the evidence of the slices already done (step 4). A resumed run never uses its own starting `HEAD` as the base, or the review would miss the earlier slices.
 
 ## 1. Resolve the plan
 
@@ -68,6 +72,7 @@ Handle each outcome:
 - **`needs_evidence_review`:** completed metadata is not proof, and you must not replay slices or rerun a gate by habit.
   - Check the existing report and metrics against the plan, branch, commit SHA, gate SHA, and clean-tree evidence.
   - If valid evidence already proves the final gate, report that no work remains.
+  - If every slice is committed but no valid gate evidence exists, a run stopped after its slice commits: confirm each `completed` slice has its commit on the branch, then resume at step 5 with the run base and the evidence from step 0. A `completed` slice without its commit has no evidence: treat it as pending.
 - **`blocked`, `needs_status_review`, `no_match`:** inspect the plan's native status and the current diff, and resolve the blocker before implementing.
 
 Confirm the plan file is committed. If it is not, stop: only committed plans are executable.
@@ -101,23 +106,47 @@ A gate for an earlier SHA never validates the changed tree.
 
 The main session implements, following `execute-tdd.md`. Work one slice at a time, observe red before green, and record the deviation rules of `execute.md` §2.
 
-**No commit before step 6.** Between the start and step 6, nothing is committed: not per slice, not per phase, not as a checkpoint. The checkpoint is the index (`git add`), described below. Commit only at step 6, after the integration review. Never use `git commit -a`, `git add -A` or `git add .` during a run: during a mutant round they stage or commit the mutant itself. Stage by explicit path.
+**One commit per approved slice.** Commit only when a slice is approved, never mid-slice, per phase, or as a checkpoint. Inside a slice the checkpoint is the index (`git add`), described below. Never use `git commit -a`, `git add -A` or `git add .` during a run: during a mutant round they stage or commit the mutant itself. Stage by explicit path.
+
+A slice is approved when all of these hold:
+- its focused checks are green;
+- the elected discriminant has its literal red recorded, or the plan says the slice has none;
+- every mutant is reverted, and `git diff --quiet` holds for every file in the write-set (working tree equals index, so no mutant is left);
+- its rows of the test traceability table are filled;
+- `git status --porcelain=v1 --untracked-files=all` lists nothing outside the slice's write-set and the plan file.
+
+Then mark the slice `completed` in the plan, stage the write-set and the plan file by explicit path, inspect `git diff --cached --stat`, and commit in the repository's message style, naming the WI and the slice ID. Never `--amend`, rebase, or squash an earlier slice commit: a later fix is a new commit. Record each slice's commit SHA.
+
+The commit body is the slice's durable evidence, so a later session can review and report the run. It holds:
+- the slice's traceability rows, with the literal red for each `[visto]`;
+- the new artifacts with their reuse search terms and decisions;
+- the deviations;
+- the slice's implementation, review, and focused-check minutes.
+
+It ends with three trailers: `Execute-Plan: <plan path>`, `Execute-Base: <run base SHA>`, and `Execute-Slice: <slice ID>`. Steps 5, 6, and 8 read the evidence of every slice from these bodies, not from memory.
 
 Outside BrixBroker (see Authority), use `implementer` subagents only for slices that meet all of these:
 - the slice is ready;
 - its write-set is disjoint from every other running slice;
 - its shared contracts are already settled.
 
-Run each such subagent with `isolation: worktree` and brief it with the slice, its write-set, its AC IDs, and its focused checks. Integration, shared files, plan status, commits, and gates stay in the main session, serially.
+Run each such subagent with `isolation: worktree` and brief it with the slice, its write-set, its AC IDs, its focused checks, and its **Reuso** block. Require its report to list every new artifact with the search terms used. Integration, shared files, plan status, commits, and gates stay in the main session, serially: integrate one slice's result, approve it, and commit it before integrating the next.
 
 For each slice:
+- before creating any new artifact (type, port method, handler, endpoint, component, helper, test builder or fixture, script, environment variable, configuration key, secret, feature flag, pipeline parameter), and before asking the dev to fill in any configuration value, check reuse against the slice's **Reuso** block (`plan-for-cursor` pass 12):
+  - **reuse** or **extend:** use the named existing artifact. Do not create a parallel one.
+  - **create new:** rerun the plan's search terms, and search once more by the behavior's verb and domain noun. The code may have moved since the SHA-base, and the plan's search may have been narrow.
+  - **not in the block** (a helper the plan did not foresee, or a missing block): search the same way before creating it.
+  - **configuration:** search for the value the setting carries (URL, host, timeout, connection string), not only its name, across the places listed in pass 12. The same key changes shape between layers (`Smtp:Host` in `appsettings` is `Smtp__Host` in the environment). Never tell the dev to set a variable the repository already defines.
+
+  If the search finds an equivalent the plan missed, reuse it when that stays inside the slice's write-set and changes no shared or public contract, and record it as a deviation (`execute.md` §2). Otherwise it changes the plan: apply "Decisions during execution" below. Record the search terms for every artifact the slice creates, so the reviewer can check them;
 - run the focused checks;
 - keep the literal red output for the elected discriminant;
 - when a mutant round applies (`execute.md` §"Rodadas de mutante"), before **each** mutant run `git add -- <file>` on the implementation file, then apply the mutant. Re-stage before every mutant: the implementation changes between mutants, so an earlier stage is stale. A new file needs the same `git add`, or the checkout fails with `pathspec did not match`. Revert only with `git checkout -- <file>`, which restores from the index, so the staged implementation survives (without the stage, the checkout also discards the implementation). Confirm the revert with `git diff --quiet -- <file>` (working tree equals index), never with `git status --porcelain`: with the stage it still lists `M  <file>`, and without it the list is empty exactly when the implementation was lost. Never restore from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
 - fill the slice's rows of the test traceability table from `execute.md` §5, one row per plan test ID, with the assertion's `path:line`, the label, and the literal red for each `[visto]`;
 - record changed paths, results, and elapsed time.
 
-Update slice status serially, using only the vocabulary the plan already supports: `in_progress` before starting, `completed` after the integration review passes. The plan's gate todo stays pending after a successful gate; the external report records the gate. A tracked post-gate edit would change the delivered tree.
+Update slice status serially, using only the vocabulary the plan already supports: `in_progress` before starting, `completed` in the slice's own commit. `completed` means the slice was approved, not that the integration review passed; a review finding reopens it as a new fix commit (step 6). The plan's gate todo stays pending after a successful gate; the external report records the gate. A tracked post-gate edit would change the delivered tree.
 
 If the same failure survives two correction attempts, or the code contradicts the plan, stop the dependent slices and take it to the dev. Do not silently change scope.
 
@@ -126,22 +155,23 @@ If the same failure survives two correction attempts, or the code contradicts th
 When a finding needs a decision the plan does not cover (product, ADR, scope or release, public contract):
 1. Stop the work that depends on it.
 2. Bring the options and your recommendation to the dev, and decide together.
-3. Record the decision in the Work Item's "Decisões do dev" section and its mirror, in the decision record's format, after the dev confirms the text. Commit the mirror on its own, staging only that file.
+3. Record the decision in the Work Item's "Decisões do dev" section and its mirror, in the decision record's format, after the dev confirms the text. Commit the mirror on its own with `git commit --only -- <mirror file>`, so the index (which may hold a slice's staged implementation) stays out of that commit.
 4. Correct the plan where the decision changes it, rerun the preflight on the changed part, and continue.
 
-## 5. Integration review (before commit)
+## 5. Integration review (before step 6)
 
 First run the deterministic part of the owner's blockers list from the repository root: `& (Join-Path $skillRoot 'scripts/check-owner-blockers.ps1')`. It compares the working tree with the merge-base of `origin/master`.
 - **Exit 1 (BLOCK):** fix each finding in the main session and run it again.
-- **Exit 2 (UNVERIFIED):** a check could not run, usually `az login` for the dev2 deploy lookup or the fetch of `origin/master`. Resolve it before the commit; never treat it as clean.
+- **Exit 2 (UNVERIFIED):** a check could not run, usually `az login` for the dev2 deploy lookup or the fetch of `origin/master`. Resolve it before step 6; never treat it as clean.
 - **WARN:** goes to the reviewer below, who judges whether each one is justified.
 
-Send the integrated diff to the `reviewer` subagent once, in fresh context. Brief it with:
+Send the integrated diff to the `reviewer` subagent once, in fresh context. The integrated diff is `git diff <run base>` (step 0), which spans every slice commit of the run, including those of an earlier session, plus any uncommitted change; `git diff` alone shows only the uncommitted part. Take the traceability table, the artifact search terms, and the deviations from the slice commit bodies. Brief it with:
 - `.cursor/commands/execute-code-review.md`, covering the Standards and Spec axes;
 - the owner's recurring blockers list in the repository's `CLAUDE.local.md`, when present, with the check's WARN findings: check the diff against each item the touched area reaches, and report a violation as a Standards finding citing the item number;
 - the plan, its coverage matrix, and the test traceability table;
 - the instruction to check the table against the plan, not the diff: every plan test ID needs a row, and each row's assertion must observe its obligation;
-- the instruction to derive missing behavior scenarios from the spec, not only from the named tests.
+- the instruction to derive missing behavior scenarios from the spec, not only from the named tests;
+- the list of new artifacts with the search terms recorded in the slice commits, and the instruction to search the repository, outside the diff, for an existing equivalent of each: a duplicate of existing code is a Standards finding, and a plan **reuse** or **extend** decision that the diff did not follow is a Spec finding.
 
 Require the full list of rules the Standards axis opened, always including `110`.
 
@@ -149,13 +179,15 @@ Fix accepted findings in the main session, or return them to the slice's impleme
 
 ## 6. Commit
 
-This is the only commit of the run (see "No commit before step 6" in §4). Run completeness items 1–3 of `execute.md` (discriminant, traceability, rules opened). An incomplete report is completed first, or its blocker is declared in the report.
+The slices are already committed (§4). This step commits only what the integration review changed. Run completeness items 1–3 of `execute.md` (discriminant, traceability, rules opened) over the whole run, reading the earlier slices' evidence from their commit bodies. An incomplete report is completed first, or its blocker is declared in the report.
 
-Stage only the intended implementation and plan files and inspect the staged diff. Create a new descriptive commit in the repository's message style. Never `--amend` or `--no-verify`.
+If the review led to fixes, stage only the intended implementation and plan files, inspect the staged diff, and create a new descriptive commit in the repository's message style. If nothing changed, create no commit; the last slice commit is the one the gate observes. Never `--amend` or `--no-verify`.
 
-Confirm that `git rev-parse HEAD` is the new commit and that `git status --porcelain=v1 --untracked-files=all` is empty. If the tree is not clean, resolve ownership before any gate.
+Confirm that `git rev-parse HEAD` is the commit to gate and that `git status --porcelain=v1 --untracked-files=all` is empty. If the tree is not clean, resolve ownership before any gate.
 
 ## 7. Final gate against the commit
+
+"The commit" from here on is the gated commit: `HEAD` after step 6, the last commit of the run. It is the `-CommitSha` below, the report's commit, and the metrics' `commit_sha`. Slice commit SHAs appear only in the report's slice table.
 
 1. Freeze the checkout: no writer runs during the gate.
 2. Resolve the artifact paths:
@@ -193,7 +225,7 @@ Never report an earlier commit's gate as validation for a fix. Never edit code o
 
 Write the report at the resolved `ReportPath`, using exactly the template from `execute.md` §5, then run completeness items 4–6 (Docker evidence, fingerprint line, gates not run). Two adjustments:
 - **Gate section:** the manifest `HEAD` equals the commit. Instead of the post-commit binding paragraph, record the observed `HEAD`, the branch, the clean-tree status, and the line `fingerprint pós-commit: <literal output> · igual ao do manifesto: sim|não`.
-- **Slice table:** add the per-slice table from [references/metrics.md](references/metrics.md).
+- **Slice table:** add the per-slice table from [references/metrics.md](references/metrics.md), built from the slice commit bodies for slices done in an earlier session.
 
 ## 9. Metrics
 

@@ -36,7 +36,7 @@ Duas regras ligam o baseline:
 Cada smell: *o que é* → *como corrigir*; confira contra o diff:
 
 - **Nome misterioso** — função, variável ou tipo cujo nome não revela o que faz/guarda. → renomear; se nenhum nome honesto aparecer, o design está confuso.
-- **Código duplicado** — a mesma forma de lógica aparece em mais de um hunk/arquivo do diff. → extrair a forma compartilhada, chamar dos dois lados.
+- **Código duplicado** — a mesma forma de lógica aparece em mais de um hunk/arquivo do diff, **ou o diff cria o que o repo já tem**: para cada tipo, método, componente, helper, variável de ambiente ou chave de configuração nova, faça grep fora do diff pelo substantivo e pelo verbo do comportamento; para configuração, também pelo valor que ela carrega e nos lugares listados no passe 12 da `plan-for-cursor` (`Smtp:Host` no `appsettings` é `Smtp__Host` no ambiente). → extrair a forma compartilhada e chamar dos dois lados, ou usar o existente. Se o plano decidiu **reusar** ou **estender** e o diff criou outro, é achado do eixo Spec.
 - **Feature Envy** — um método que mexe mais nos dados de outro objeto do que nos próprios. → mover o método para onde estão os dados.
 - **Data Clumps** — os mesmos poucos campos/parâmetros sempre viajam juntos (um tipo querendo nascer). → agrupar num tipo só.
 - **Obsessão por primitivo** — um primitivo ou string representando um conceito de domínio que merece tipo próprio. → dar ao conceito seu próprio tipo pequeno.

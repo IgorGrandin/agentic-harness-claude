@@ -20,12 +20,13 @@ Field rules:
 - **`peak_workers`:** the largest number of `implementer` subagents running at once; `0` when the main session implemented everything.
 - **`post_gate_review_minutes`:** stays `0`. The post-gate `/revise` runs in a separate session and records its own line in `rodadas.csv`.
 - **`gate_status`:** `PASSED`, `FAILED`, `NOT_RUN`, or `INVALIDATED`.
+- **`commit_sha`:** the gated commit, the run's last commit after step 6; never a slice commit unless it is that last one.
 - **`gate_sha`:** the commit the final gate actually observed. When the status is `PASSED`, it must equal `commit_sha`.
 - **`tree_clean`:** the observed post-gate result (`true`/`false`).
 - **`slice_models`:** compact JSON mapping slice IDs to the model and effort actually used. Example: `{"S1":{"model":"sonnet","effort":"medium"},"S2":{"model":"opus","effort":"high"}}`.
 - **Token counts:** integers only when the host exposes them; blank means unavailable. Never substitute estimates.
 
 The Markdown report follows the template in `.cursor/commands/execute.md` step 5. Add one row per slice with:
-- slice ID, owner (`main` or `implementer`), write-set, and model/effort;
+- slice ID, owner (`main` or `implementer`), write-set, model/effort, and the slice's commit SHA;
 - implementation, review, and focused-check time;
 - findings, correction rounds, and final status.
