@@ -73,7 +73,7 @@ Aplique a rubrica já existente em `docs/contexts/code-audit-mode.md` — não r
 
 #### Nível 1 — o Cursor já passou aqui: audite a afirmação, não refaça a passada
 
-O `/execute-code-review-ig` que roda dentro do `/execute-ig` **já** percorreu dois eixos: **Standards** (abriu o mapa da `005`, abriu as rules da área, conferiu o diff contra elas, mais o baseline de smells) e **Spec** (requisito do plano/ADR/scope ausente ou parcial, scope creep, requisito implementado errado). Medido em 2026-09-03: **quatro dos sete itens da rubrica antiga eram essa mesma passada de novo**, e reabrir `005` + `110` + `060` + as rules de área custa ~60 KB de leitura por rodada.
+A revisão de integração do `/execute-ig` (passo 5: o subagente `reviewer` com `.cursor/commands/execute-code-review.md`) **já** percorreu dois eixos: **Standards** (abriu o mapa da `005`, abriu as rules da área, conferiu o diff contra elas, mais o baseline de smells) e **Spec** (requisito do plano/ADR/scope ausente ou parcial, scope creep, requisito implementado errado). Medido em 2026-09-03: **quatro dos sete itens da rubrica antiga eram essa mesma passada de novo**, e reabrir `005` + `110` + `060` + as rules de área custa ~60 KB de leitura por rodada.
 
 Então, para estes quatro:
 
@@ -90,12 +90,13 @@ Três casos em que o nível 1 volta a ser passada completa, e só eles: o relat�
 
 #### Nível 2 — ninguém fez ainda: aqui você não corta nada
 
-Nenhum destes está no `/execute-code-review-ig`, e são eles que historicamente acharam bug — papel de coordenador virando exclusivo, `SetTenantOverride` sem `SetTenant`, serviço sem chamador. **Nenhum sairia de suíte verde nem de releitura de rule.**
+Nenhum destes está nessa revisão de dois eixos, e são eles que historicamente acharam bug — papel de coordenador virando exclusivo, `SetTenantOverride` sem `SetTenant`, serviço sem chamador. **Nenhum sairia de suíte verde nem de releitura de rule.**
 
 - O relatório bate com a realidade? (`git status`, `git diff`, `git log`, e os arquivos de código realmente alterados.)
 - Os testes são adequados ao escopo?
 - **Antes de chamar algo de violação de convenção, conte os irmãos.** Nome, sufixo, assinatura ou padrão só é desvio se os pares **não** fizerem igual — e isso se mede abrindo os pares, não inferindo de um caso. Em 2026-08-14 acusei `GetSalesTeamRoundRobinStateForUpdateAsync` de prometer um lock inexistente; havia **11** `*ForUpdateAsync` no mesmo contrato, nenhum com lock, porque o sufixo ali significa leitura **rastreada**. O achado virou correção, a correção entrou no código e teve de ser desfeita.
 - Não há sincronização reversa spec ← código não aprovada (`CLAUDE.md` §2)?
+- Se o `CLAUDE.local.md` do repo tiver a lista de bloqueios recorrentes do owner, o diff viola algum item que a área tocada alcança? Item violado é achado, citando o número do item. Comece rodando `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-owner-blockers.ps1')` no checkout: BLOCK e UNVERIFIED são achados, e cada WARN precisa de justificativa no diff ou no relatório. Os itens que o script não cobre continuam na leitura.
 
 Mais três perguntas — nenhuma respondida por suíte verde, e por isso ninguém as faz sem ser mandado:
 

@@ -26,6 +26,7 @@ Fontes, nesta ordem:
 1. As rules de `.cursor/rules/` relevantes à área tocada — use o mapa em `005-documentation-context-hierarchy.mdc` para saber quais (`010`/`020`/`030`/`035`/`040`/`050`/`060` para backend, **+ `052` se o diff tocar `Program.cs`/composição de host Aspire**; `036`–`039`/`041`–`044`/`070`/`080`/`090` para frontend — `040` é exceção somente-backend, não confundir (ver `005`); `100` para contratos fullstack; `110` sempre).
 2. O gate de pronto (`060-dotnet-code-style-tests.mdc` / `110-cursor-workflow.mdc` — "Pronto ≠ `--filter`") conta como standard documentado, não como smell: se a suíte inteira não rodou sem `--filter`, é achado de Standards, não julgamento.
 3. O baseline de smells abaixo (Fowler, *Refactoring* cap. 3) — vale mesmo quando nenhuma rule documenta o assunto.
+4. Se o `CLAUDE.local.md` do repo tiver uma lista de bloqueios recorrentes do owner, confira cada item que a área tocada alcança contra o diff. Item violado é achado de Standards, citando o número do item e a rule que ele aponta.
 
 Duas regras ligam o baseline:
 

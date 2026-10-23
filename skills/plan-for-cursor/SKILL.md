@@ -94,6 +94,8 @@ Confira também que **o harness deixa a condição acontecer** — um teste pode
 
 Critérios de teste tautológico/vácuo e "defesa se prova disparando": `.cursor/rules/060-dotnet-code-style-tests.mdc`, §"Desenho de teste — verde não é prova". **Abra a rule**, não cite de memória.
 
+**(f) Teste removido se nomeia, um por um.** Quando a mudança remove comportamento e os testes dele saem junto, liste no plano o **nome exato** de cada teste removido (o nome do método `[Fact]`/`[Theory]` ou o texto do `it(...)`) e o motivo. O `check-owner-blockers.ps1` do `/execute-ig` bloqueia teste que existia na base e sumiu, a menos que o nome dele esteja num plano do diff. Nomear o arquivo não basta: foi reescrevendo um arquivo citado no plano que a PR 1821 apagou dois testes da WI 3675.
+
 ### 5. Gate por gatilho, escrito
 
 Derive o gate dos gatilhos em `.cursor/rules/110-cursor-workflow.mdc` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`" — **abra os dois**. No plano, diga qual gatilho disparou e **qual não disparou, e por quê**.

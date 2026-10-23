@@ -131,8 +131,14 @@ When a finding needs a decision the plan does not cover (product, ADR, scope or 
 
 ## 5. Integration review (before commit)
 
+First run the deterministic part of the owner's blockers list from the repository root: `& (Join-Path $skillRoot 'scripts/check-owner-blockers.ps1')`. It compares the working tree with the merge-base of `origin/master`.
+- **Exit 1 (BLOCK):** fix each finding in the main session and run it again.
+- **Exit 2 (UNVERIFIED):** a check could not run, usually `az login` for the dev2 deploy lookup or the fetch of `origin/master`. Resolve it before the commit; never treat it as clean.
+- **WARN:** goes to the reviewer below, who judges whether each one is justified.
+
 Send the integrated diff to the `reviewer` subagent once, in fresh context. Brief it with:
 - `.cursor/commands/execute-code-review.md`, covering the Standards and Spec axes;
+- the owner's recurring blockers list in the repository's `CLAUDE.local.md`, when present, with the check's WARN findings: check the diff against each item the touched area reaches, and report a violation as a Standards finding citing the item number;
 - the plan, its coverage matrix, and the test traceability table;
 - the instruction to check the table against the plan, not the diff: every plan test ID needs a row, and each row's assertion must observe its obligation;
 - the instruction to derive missing behavior scenarios from the spec, not only from the named tests.
@@ -162,6 +168,7 @@ Confirm that `git rev-parse HEAD` is the new commit and that `git status --porce
 3. Choose the gate projects by the triggers in rules `110` and `060`, as `execute.md` §4 requires. Run `docker info` first when `Integration` or `HostSmoke` is in the list; if Docker does not answer, stop and report.
 4. Send the gate to the `verifier` subagent with:
    - the commit SHA;
+   - the owner blockers trap, run before the gate: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-owner-blockers.ps1')`. Exit 0 is required; 1 is red and 2 is unverified;
    - `devops/scripts/run-gate.ps1 -OutDir <GateOutDir>`;
    - the project list, passed as an in-process splat (`$splat = @{ BackendProjects = @('a.csproj','b.csproj'); OutDir = '<GateOutDir>' }; & .\devops\scripts\run-gate.ps1 @splat`) or with `-File` (a comma list arrives as one string, which the script splits; valid since `c71b5c01`).
 
