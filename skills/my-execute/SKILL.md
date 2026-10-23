@@ -37,7 +37,7 @@ Do not copy those files here. The deltas below are the only intended differences
 | Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
 | Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against that commit (steps 6–7) |
 | Completeness check | items 1–4 and 6 before the commit, 5 after | items 1–3 before the commit; 4–6 after the gate (steps 6 and 8) |
-| Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add` the implementation first, then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
+| Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add -- <file>` before each mutant (also for new files), then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
 | Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
 | Metrics | `rodadas.csv` | `rodadas.csv` plus `execute-rodadas.csv` (step 9) |
 
@@ -101,6 +101,8 @@ A gate for an earlier SHA never validates the changed tree.
 
 The main session implements, following `execute-tdd.md`. Work one slice at a time, observe red before green, and record the deviation rules of `execute.md` §2.
 
+**No commit before step 6.** Between the start and step 6, nothing is committed: not per slice, not per phase, not as a checkpoint. The checkpoint is the index (`git add`), described below. Commit only at step 6, after the integration review. Never use `git commit -a`, `git add -A` or `git add .` during a run: during a mutant round they stage or commit the mutant itself. Stage by explicit path.
+
 Outside BrixBroker (see Authority), use `implementer` subagents only for slices that meet all of these:
 - the slice is ready;
 - its write-set is disjoint from every other running slice;
@@ -111,7 +113,7 @@ Run each such subagent with `isolation: worktree` and brief it with the slice, i
 For each slice:
 - run the focused checks;
 - keep the literal red output for the elected discriminant;
-- when a mutant round applies (`execute.md` §"Rodadas de mutante"), stage the slice's implementation with `git add` **before** applying the mutant. Revert only with `git checkout -- <file>`, which restores from the index, so the staged implementation survives (without the stage, the checkout also discards the implementation). Because the file stays listed as `M ` in `git status --porcelain`, confirm the revert with `git diff --quiet -- <file>` (working tree equals index) instead of the porcelain check in `execute.md`. Never restore from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
+- when a mutant round applies (`execute.md` §"Rodadas de mutante"), before **each** mutant run `git add -- <file>` on the implementation file, then apply the mutant. Re-stage before every mutant: the implementation changes between mutants, so an earlier stage is stale. A new file needs the same `git add`, or the checkout fails with `pathspec did not match`. Revert only with `git checkout -- <file>`, which restores from the index, so the staged implementation survives (without the stage, the checkout also discards the implementation). Confirm the revert with `git diff --quiet -- <file>` (working tree equals index), never with `git status --porcelain`: with the stage it still lists `M  <file>`, and without it the list is empty exactly when the implementation was lost. Never restore from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
 - fill the slice's rows of the test traceability table from `execute.md` §5, one row per plan test ID, with the assertion's `path:line`, the label, and the literal red for each `[visto]`;
 - record changed paths, results, and elapsed time.
 
@@ -141,7 +143,7 @@ Fix accepted findings in the main session, or return them to the slice's impleme
 
 ## 6. Commit
 
-Run completeness items 1–3 of `execute.md` (discriminant, traceability, rules opened). An incomplete report is completed first, or its blocker is declared in the report.
+This is the only commit of the run (see "No commit before step 6" in §4). Run completeness items 1–3 of `execute.md` (discriminant, traceability, rules opened). An incomplete report is completed first, or its blocker is declared in the report.
 
 Stage only the intended implementation and plan files and inspect the staged diff. Create a new descriptive commit in the repository's message style. Never `--amend` or `--no-verify`.
 
