@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$script=Join-Path $root 'skills/my-execute/scripts/append-metrics.ps1'
+$script=Join-Path $root 'skills/execute-ig/scripts/append-metrics.ps1'
 function Require([bool]$Condition,[string]$Message){if(-not $Condition){throw $Message}}
 $temp=Join-Path ([IO.Path]::GetTempPath()) "execute-metrics-$([Guid]::NewGuid().ToString('N'))"
 $csv=Join-Path $temp 'execute-rodadas.csv'

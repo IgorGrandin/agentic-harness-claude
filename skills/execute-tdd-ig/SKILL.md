@@ -1,10 +1,10 @@
 ---
-name: my-execute-tdd
-description: TDD no Broker: onde os testes vivem, fronteira de mock, anti-padroes e o loop red-green. Consulte antes e durante o loop. Use quando o usuario pedir "/my-execute-tdd" ou durante uma fatia TDD.
+name: execute-tdd-ig
+description: TDD no Broker: onde os testes vivem, fronteira de mock, anti-padroes e o loop red-green. Consulte antes e durante o loop. Use quando o usuario pedir "/execute-tdd-ig" ou durante uma fatia TDD.
 disable-model-invocation: true
 ---
 
-# /my-execute-tdd — Test-Driven Development no Broker
+# /execute-tdd-ig — Test-Driven Development no Broker
 
 TDD é o loop red → green. Esta skill cobre o que **não** está na `060`: onde os testes vivem (seams), a fronteira de mock adaptada ao Broker, os anti-padrões e as regras do loop. Consulte antes e durante o loop, não depois.
 
@@ -74,8 +74,8 @@ Mocke só nas **fronteiras de sistema** — nunca collaborators internos, nunca 
 - **Red antes de green.** Escreva o teste que falha primeiro, depois só o código suficiente para passar. Não antecipe testes futuros nem adicione features especulativas. **O red é a prova de que o teste não é vácuo** — teste que nasce verde antes da implementação denuncia o seam errado; pare e reescolha (`060` §"Desenho de teste").
 - **Defesa se prova disparando, não passando.** Se a fatia adiciona guard, fail-fast, limite, rate limit, header ou authz, o red/green não fecha o item — aplique `060` §"Desenho de teste": provoque a condição real, observe a consequência real.
 - **Uma fatia por vez.** Um seam, um teste, uma implementação mínima por ciclo.
-- **Refactor não é parte do loop.** Pertence ao estágio de revisão (`/my-execute-code-review`), não ao ciclo red → green.
-- **Iteração rápida durante o loop pode usar `--filter`/watch mode** — é ferramenta de debug, não define "pronto". A definição de pronto (suíte inteira sem `--filter`) está em `060-dotnet-code-style-tests.mdc` e `110-cursor-workflow.mdc` — não é redefinida aqui, só se aplica no fim, antes do `/my-execute-code-review`.
+- **Refactor não é parte do loop.** Pertence ao estágio de revisão (`/execute-code-review-ig`), não ao ciclo red → green.
+- **Iteração rápida durante o loop pode usar `--filter`/watch mode** — é ferramenta de debug, não define "pronto". A definição de pronto (suíte inteira sem `--filter`) está em `060-dotnet-code-style-tests.mdc` e `110-cursor-workflow.mdc` — não é redefinida aqui, só se aplica no fim, antes do `/execute-code-review-ig`.
 
 ## Saída de teste — contexto mínimo
 

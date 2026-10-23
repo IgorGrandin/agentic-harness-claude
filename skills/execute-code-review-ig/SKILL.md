@@ -1,10 +1,10 @@
 ---
-name: my-execute-code-review
-description: Revisao do diff em dois eixos (Standards e Spec) contra as rules do repositorio e o plano. Use quando o usuario pedir "/my-execute-code-review".
+name: execute-code-review-ig
+description: Revisao do diff em dois eixos (Standards e Spec) contra as rules do repositorio e o plano. Use quando o usuario pedir "/execute-code-review-ig".
 disable-model-invocation: true
 ---
 
-# /my-execute-code-review — Revisão em dois eixos (Standards + Spec)
+# /execute-code-review-ig — Revisão em dois eixos (Standards + Spec)
 
 Revisão do diff entre `HEAD` e um ponto fixo, em dois eixos separados:
 
@@ -63,7 +63,7 @@ Este repo não tem issue tracker — a fonte da "spec" é a hierarquia real do `
 
 Reporte: (a) requisitos do plano/ADR/scope que estão faltando ou parciais; (b) comportamento no diff que não foi pedido (scope creep); (c) requisitos que parecem implementados mas estão errados; (d) **testes do plano faltando ou parciais**. Cite o artefato (caminho do plano, número da ADR, ou linha do scope) em cada achado.
 
-**Os testes que o plano pede são requisito deste eixo, não assunto só do TDD.** Percorra os ids da seção de testes do plano (`T1.1`, `T1.2`, `T4`…), **não** os testes presentes no diff: para cada id, ache a linha da asserção que cobre a obrigação. Teste que não existe não aparece no diff, e por isso só uma passada a partir do plano o encontra. Id sem asserção, ou coberto pela metade, é achado (d), e o eixo não sai "nenhum" enquanto houver um sem motivo declarado. Dentro do `/my-execute`, o resultado desta passada é a tabela de rastreabilidade do relatório. O formato está em `.cursor/commands/execute.md`, passo 5, §Ciclo TDD.
+**Os testes que o plano pede são requisito deste eixo, não assunto só do TDD.** Percorra os ids da seção de testes do plano (`T1.1`, `T1.2`, `T4`…), **não** os testes presentes no diff: para cada id, ache a linha da asserção que cobre a obrigação. Teste que não existe não aparece no diff, e por isso só uma passada a partir do plano o encontra. Id sem asserção, ou coberto pela metade, é achado (d), e o eixo não sai "nenhum" enquanto houver um sem motivo declarado. Dentro do `/execute-ig`, o resultado desta passada é a tabela de rastreabilidade do relatório. O formato está em `.cursor/commands/execute.md`, passo 5, §Ciclo TDD.
 
 Se nenhum dos três existir para o trabalho em questão, registre isso explicitamente ("sem plano/ADR/scope identificável para este diff") em vez de pular o eixo silenciosamente.
 
@@ -77,4 +77,4 @@ Se nenhum dos três existir para o trabalho em questão, registre isso explicita
 <achados, ou "nenhum">
 ```
 
-Formato pensado para ser colado direto na seção "Code review" do relatório gerado por `/my-execute`.
+Formato pensado para ser colado direto na seção "Code review" do relatório gerado por `/execute-ig`.

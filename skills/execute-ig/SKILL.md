@@ -1,6 +1,6 @@
 ---
-name: my-execute
-description: Executes an approved, committed BrixBroker implementation plan through dependency-aware slices, one independent integration review, a commit on a clean tree, and a final gate against that exact commit. Use when the dev asks for "/my-execute <WI-number|plan-path>".
+name: execute-ig
+description: Executes an approved, committed BrixBroker implementation plan through dependency-aware slices, one independent integration review, a commit on a clean tree, and a final gate against that exact commit. Use when the dev asks for "/execute-ig <WI-number|plan-path>".
 argument-hint: "<WI-number|plan-path> (ex.: 3572 ou .cursor/plans/wi_3572_x.plan.md)"
 disable-model-invocation: true
 ---
@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 ## Authority
 
-Write product code only when the project instructions loaded in this session authorize `/my-execute` to implement, from the repository's `CLAUDE.md` or the dev's personal `CLAUDE.local.md`. Without it, stop before any edit and tell the dev. Even with it:
+Write product code only when the project instructions loaded in this session authorize `/execute-ig` to implement, from the repository's `CLAUDE.md` or the dev's personal `CLAUDE.local.md`. Without it, stop before any edit and tell the dev. Even with it:
 - the plan must be approved and committed under `.cursor/plans/`;
 - the plan is the scope ceiling. Anything it does not order is not implemented "in passing".
 
@@ -41,7 +41,7 @@ Do not copy those files here. The deltas below are the only intended differences
 | Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
 | Metrics | `rodadas.csv` | `rodadas.csv` plus `execute-rodadas.csv` (step 9) |
 
-Shared scripts live outside the checkout. Set `$skillRoot = Join-Path $env:USERPROFILE '.claude/skills/my-execute'`.
+Shared scripts live outside the checkout. Set `$skillRoot = Join-Path $env:USERPROFILE '.claude/skills/execute-ig'`.
 
 ## 0. Start
 

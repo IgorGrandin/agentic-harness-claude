@@ -90,7 +90,7 @@ Formato (idêntico nos dois lugares):
 
 A seção "Decisões do dev" é o registro de todas as decisões da task. O Work Item é a fonte de verdade e de consulta; o espelho e os planos são cópias que citam o ID (`D1`, `D2`…), e em divergência vale o Work Item.
 
-Não inclua passos de implementação, escolha de algoritmo ou nomes de classes/métodos a criar — isso é decisão do dev. Se o usuário insistir em detalhar "como", pergunte se não é o caso de ele mesmo pegar a task no modo "terceiro dev" (spec vira plano do Cursor, fluxo `/my-execute`+`/revise` de sempre).
+Não inclua passos de implementação, escolha de algoritmo ou nomes de classes/métodos a criar — isso é decisão do dev. Se o usuário insistir em detalhar "como", pergunte se não é o caso de ele mesmo pegar a task no modo "terceiro dev" (spec vira plano do Cursor, fluxo `/execute-ig`+`/revise` de sempre).
 
 ## 5. Lembrete final
 

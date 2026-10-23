@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$resolver=Join-Path $root 'skills/my-execute/scripts/resolve-artifact-paths.ps1'
+$resolver=Join-Path $root 'skills/execute-ig/scripts/resolve-artifact-paths.ps1'
 function Require([bool]$Condition,[string]$Message){if(-not $Condition){throw $Message}}
 $temp=Join-Path ([IO.Path]::GetTempPath()) "execute-artifacts-$([Guid]::NewGuid().ToString('N'))"
 $canonical=Join-Path $temp 'claude-handoffs/Broker'

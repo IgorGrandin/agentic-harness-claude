@@ -1,23 +1,23 @@
 ---
-name: my-analise
-description: Audita um plano de implementacao antes que ele vire codigo: procura o que esta errado, o que falta e o que pode melhorar. Reporta achados sem implementar, sem editar o plano e sem commitar. Use quando o usuario pedir "/my-analise".
+name: analise-ig
+description: Audita um plano de implementacao antes que ele vire codigo: procura o que esta errado, o que falta e o que pode melhorar. Reporta achados sem implementar, sem editar o plano e sem commitar. Use quando o usuario pedir "/analise-ig".
 disable-model-invocation: true
 ---
 
-# /my-analise — Auditoria de um plano antes de executá-lo
+# /analise-ig — Auditoria de um plano antes de executá-lo
 
 Revisa um plano de implementação **antes** que ele vire código, procurando o que está errado, o que está faltando e o que pode melhorar. Reporta os achados; **não implementa nada, não edita o plano, não commita**. Quem decide o que fazer com os achados é o usuário.
 
-Contraste com os comandos irmãos: `/my-execute-code-review` audita o **diff** depois; `/my-analise` audita o **plano** antes. Um achado aqui custa uma linha de texto; o mesmo achado depois custa uma fatia inteira refeita.
+Contraste com os comandos irmãos: `/execute-code-review-ig` audita o **diff** depois; `/analise-ig` audita o **plano** antes. Um achado aqui custa uma linha de texto; o mesmo achado depois custa uma fatia inteira refeita.
 
 ## 0. Modo da auditoria
 
 Há dois modos, que **não** são intercambiáveis:
 
-- **`/my-analise` chamado diretamente pelo usuário** (padrão): execute os quatro eixos, inclusive **Oportunidades 🔵**. Não edite plano nem código; reporte e deixe o usuário decidir o que aplicar.
-- **`modo=preflight-execute`**, passado explicitamente pelo `/my-execute`: execute Código, Spec e Execução com o mesmo rigor, mas **não procure nem reporte oportunidades 🔵**. O `/my-execute` tem autorização para corrigir todo 🔴/🟡 no plano antes de implementar; oportunidade é melhoria opt-in do usuário, nunca trabalho implícito da execução.
+- **`/analise-ig` chamado diretamente pelo usuário** (padrão): execute os quatro eixos, inclusive **Oportunidades 🔵**. Não edite plano nem código; reporte e deixe o usuário decidir o que aplicar.
+- **`modo=preflight-execute`**, passado explicitamente pelo `/execute-ig`: execute Código, Spec e Execução com o mesmo rigor, mas **não procure nem reporte oportunidades 🔵**. O `/execute-ig` tem autorização para corrigir todo 🔴/🟡 no plano antes de implementar; oportunidade é melhoria opt-in do usuário, nunca trabalho implícito da execução.
 
-Se o modo não vier declarado, assuma o primeiro. Nunca chame uma passada parcial de “`/my-analise`” completa.
+Se o modo não vier declarado, assuma o primeiro. Nunca chame uma passada parcial de “`/analise-ig`” completa.
 
 ## 1. Identificar o plano
 
@@ -78,7 +78,7 @@ Onde os planos deste repo historicamente vazam:
 
 ## 5. Eixo Oportunidades — o que ficaria melhor
 
-Execute este eixo **somente no `/my-analise` chamado diretamente pelo usuário**. No `modo=preflight-execute`, escreva “Oportunidades: não avaliadas neste modo” e prossiga sem procurar nem propor melhoria opcional.
+Execute este eixo **somente no `/analise-ig` chamado diretamente pelo usuário**. No `modo=preflight-execute`, escreva “Oportunidades: não avaliadas neste modo” e prossiga sem procurar nem propor melhoria opcional.
 
 Não são defeitos; são melhorias que o usuário decide se quer. Rotule como opcionais e **não** as misture com os achados dos eixos 2–4.
 
@@ -128,6 +128,6 @@ Não invente achado para parecer útil: um plano bom sai daqui com veredito "pro
 
 ## 7. Depois
 
-No modo direto, termine perguntando ao usuário se ele quer que você **aplique as correções no arquivo do plano** — só edite o `.plan.md` sob pedido explícito. Nunca comece a implementar a partir de `/my-analise`; quem executa é o `/my-execute`.
+No modo direto, termine perguntando ao usuário se ele quer que você **aplique as correções no arquivo do plano** — só edite o `.plan.md` sob pedido explícito. Nunca comece a implementar a partir de `/analise-ig`; quem executa é o `/execute-ig`.
 
-No `modo=preflight-execute`, devolva a matriz completa ao `/my-execute`; ele é responsável por resolver cada 🔴/🟡 antes do primeiro arquivo de produção ser editado.
+No `modo=preflight-execute`, devolva a matriz completa ao `/execute-ig`; ele é responsável por resolver cada 🔴/🟡 antes do primeiro arquivo de produção ser editado.
