@@ -96,6 +96,17 @@ Critérios de teste tautológico/vácuo e "defesa se prova disparando": `.cursor
 
 **(f) Teste removido se nomeia, um por um.** Quando a mudança remove comportamento e os testes dele saem junto, liste no plano o **nome exato** de cada teste removido (o nome do método `[Fact]`/`[Theory]` ou o texto do `it(...)`) e o motivo. O `check-owner-blockers.ps1` do `/execute-ig` bloqueia teste que existia na base e sumiu, a menos que o nome dele esteja num plano do diff. Nomear o arquivo não basta: foi reescrevendo um arquivo citado no plano que a PR 1821 apagou dois testes da WI 3675.
 
+**(g) O projeto do teste vem do teste vizinho, não da intenção.** "É lógica, então é Unit" é rótulo, não verificação. Para **cada** teste, escreva no plano o projeto e o caminho do arquivo, e cite um teste **que já existe naquele projeto** cobrindo a mesma classe ou o mesmo mecanismo:
+
+- a classe sob teste já tem testes → o teste novo vai para o projeto deles (grep pelo nome da classe em `platform/backend/tests/`);
+- o plano usa uma peça existente como molde (filtro, endpoint, leitor) → o teste vai para o projeto onde mora o teste **do molde**;
+- o comportamento só acontece no pipeline HTTP (status de filtro, autorização, cabeçalho), no banco (RLS, upsert, SQL do leitor) ou na composição do host → não é Unit, por mais simples que pareça. O mapa de escopo → projeto (integração/RLS/authz → Integration; composição de host ou `*Endpoints*.cs` → HostSmoke) está na `060` §"Pronto ≠ `--filter`": **abra a rule**;
+- nenhum vizinho → a escolha do projeto vira artefato novo do passe 12, com a busca citada.
+
+Projeto citado no plano tem de existir na branch: `ls platform/backend/tests/` antes de escrever o nome.
+
+> Caso (WI 3685, 2026-10-23): o plano pediu "U (Crm): `MessageFieldSourceReader`" e "U: corpo de 513 KB no preview → 413". O leitor lê o banco e já tinha `MessageFieldSourceReaderIntegrationTests.cs` no Integration; o 413 vem do filtro de tamanho, e o teste do próprio molde citado (`EmailVolumeUnsubscribeEndpoints.cs`) mora no `Broker.HostSmoke`. O executor teve de mover os dois.
+
 ### 5. Gate por gatilho, escrito
 
 Derive o gate dos gatilhos em `.cursor/rules/110-cursor-workflow.mdc` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`" — **abra os dois**. No plano, diga qual gatilho disparou e **qual não disparou, e por quê**.
@@ -117,6 +128,10 @@ Lembre da assimetria: o Cursor recebe metade das rules automaticamente pelos `gl
 Uma passada final olhando **apenas** para afirmações que brigam entre si. Plano longo contradiz a si mesmo com facilidade, e o executor obedece à frase errada.
 
 > Caso: escrevi na visão geral que a fatia **não** serializa e, no passo, mandei o comentário dizer que "a serialização é tratada no todo seguinte".
+
+Na mesma passada, procure **contrato usado e não declarado**: todo desfecho de erro que uma fatia ou um teste exige (status, "→ erro", "não envia", "→ 404") tem de ter o **código de erro** no catálogo de erros do plano, e todo código do catálogo tem de ter quem o produza. Para cada desfecho, cite o código do catálogo ou o código que já existe no repo (grep no arquivo de erros do módulo). Desfecho sem código é o executor inventando nome e copy.
+
+> Caso (WI 3685, 2026-10-23): a F5 exigia "template inativo não é enviado nem em teste" e "desfecho de teste de outra origem → 404", mas o catálogo de erros da F3 não trazia `template_inactive` nem `test_send_not_found`. O executor criou os dois, e o plano teve de ser emendado depois.
 
 ### 8. Guarda e sentinela — enumere quem referencia, provoque o nome exato
 
@@ -216,6 +231,7 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 | **Ambiente** | **toda afirmação de ambiente/sintaxe externa/runtime com o comando que a produziu, ou marcada `⚠️ NÃO VERIFICADA`** | **saída citada, ou o rótulo** |
 | Merge (se aplicável) | `git merge-tree` rodado para a lista de `changed in both`; contagem de membros/chamadores por substantivo de domínio, não por padrão sintático | saída do `merge-tree` |
 | Testes | para cada teste: linha de produção alvo nomeada · caminho fixture→linha traçado (ou fixture delegado) · harness alcança a condição · **asserção negativa provocada antes de escrita, ou rotulada** | linha citada |
+| **Projeto do teste** | **para cada teste: projeto existente na branch + teste vizinho que já cobre a mesma classe ou o molde citado; comportamento de pipeline HTTP, banco ou host fora do Unit; sem vizinho, busca citada (passe 12)** | **vizinho citado por caminho** |
 | Gate | gatilho N disparou; gatilho M não, porque … | `110` §Gate |
 | Rules | abertas: `010`, `030`, `040` | mapa da `005` |
 | **Guarda/sentinela** (se aplicável) | **referenciadores enumerados por grep do nome da entidade, com FK × guarda-de-aplicação para cada um · sentinela mandada provocar com o identificador literal que a ADR rejeitou** | **grep citado · nome da ADR** |
@@ -223,6 +239,7 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 | **Cobertura** | **grafo de fatias (dono, write-set, dependências, paralelismo) · matriz AC → comportamento → fronteira → teste → discriminante · dimensões de risco aplicáveis e excluídas · desafio do `reviewer` feito e achados resolvidos · vermelho observado ou limitação registrada** | **matriz no plano · achados do reviewer** |
 | **Reuso** | **todo artefato novo, inclusive variável de ambiente e chave de configuração, com busca (termos · onde), candidato e decisão reusar/estender/criar; "nada encontrado" com os termos** | **bloco Reuso de cada fatia** |
 | Contradição | passada final feita | — |
+| **Erros declarados** | **todo desfecho de erro exigido por fatia ou teste tem código no catálogo do plano ou no repo; todo código do catálogo tem produtor** | **código citado por desfecho** |
 ```
 
 Se algum passe não foi feito, **diga qual e por quê** em vez de omitir. Silêncio não se distingue de esquecimento.
