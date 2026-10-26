@@ -139,7 +139,8 @@ try {
     G checkout -q -- .; G clean -qfd
     G checkout -q master; Put 'README.md' "moved`n"; G add -A; G commit -q -m moved; G checkout -q feature/clean
     $stale=Run-Check $null
-    Require ($stale.Exit -eq 1 -and (Has $stale.Result 10 'BLOCK' '')) 'Item 10: branch behind master not blocked'
+    $behind=@($stale.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Severity -eq 'WARN' -and $_.Message -like '*1 commit(s) behind*' })
+    Require ($stale.Exit -eq 0 -and $behind.Count -eq 1) "Item 10: branch behind master did not warn with the commit count: exit $($stale.Exit)"
 
     # Hook: denies edits to generated type files, allows everything else.
     $hook=Join-Path $root 'skills/execute-ig/scripts/block-generated-api-edit.ps1'

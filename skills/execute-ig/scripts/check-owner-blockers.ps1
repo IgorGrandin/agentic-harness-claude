@@ -71,7 +71,8 @@ $featureHtmlPattern = '^platform/frontend/libs/(features|[^/]+/features)/.+\.htm
 $previousEncoding = $null; $mb = $null
 try { $previousEncoding = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { $previousEncoding = $null }
 try {
-    # Item 10 - the branch contains the current Base.
+    # Item 10 - the branch contains the current Base. Only warns: Base moves often
+    # (doc commits), and merging it on every run is the dev's call.
     $baseFresh = $true
     if (-not $NoFetch -and $Base -match '^([^/]+)/(.+)$') {
         if ((Invoke-Git @('fetch', '--quiet', $Matches[1], $Matches[2]) -AllowFail).Code -ne 0) {
@@ -81,7 +82,10 @@ try {
     }
     if ((Invoke-Git @('rev-parse', '--verify', '--quiet', "$Base^{commit}") -AllowFail).Code -ne 0) { throw "Base '$Base' does not resolve to a commit." }
     $ancestor = (Invoke-Git @('merge-base', '--is-ancestor', $Base, 'HEAD') -AllowFail).Code
-    if ($ancestor -eq 1 -and $baseFresh) { Add-Finding 10 'BLOCK' '' 0 "HEAD does not contain the current $Base. Merge it and let CI run again before review." }
+    if ($ancestor -eq 1 -and $baseFresh) {
+        $behind = (Invoke-Git @('rev-list', '--count', "HEAD..$Base")).Lines[0]
+        Add-Finding 10 'WARN' '' 0 "HEAD is $behind commit(s) behind $Base. Merge it and let CI run again before review."
+    }
     elseif ($ancestor -gt 1) { throw "git merge-base --is-ancestor failed with exit $ancestor" }
     $mb = (Invoke-Git @('merge-base', $Base, 'HEAD')).Lines[0]
 

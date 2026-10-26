@@ -51,6 +51,12 @@ Record the start timestamp (`Get-Date -Format o`) before anything else. Also rec
 
 Start only from a clean tree. If unrelated changes exist, stop and let the dev resolve the starting state. Never stash, discard, or include them.
 
+**Base freshness (owner blockers item 10).** Before anything else touches the branch, run `git fetch --quiet origin master` and `git rev-list --count HEAD..origin/master`. If the fetch fails, tell the dev and continue; the check in step 5 reports it as UNVERIFIED. If the count is above 0, compare `git diff --name-only HEAD...origin/master` (files the new commits touch) with `git diff --name-only $(git merge-base HEAD origin/master)` (files the branch changed) and, when the argument is a plan path, with the files that plan names. Stop and show the dev, in one message: the count, `git log --oneline HEAD..origin/master`, whether the new commits touch only docs (`docs/`, `backlog/`, `*.md`), and the files in common, or "none". Then ask whether to merge `origin/master` now or continue without it:
+- **Merge:** only in a fresh run (no earlier slice commits of this plan, see Run base below), because in a resumed run the merged commits would enter the integrated diff of step 5. Run `git merge --no-edit origin/master`; on a conflict, run `git merge --abort` and stop for the dev. Never push. Then record the new `HEAD` as the starting `HEAD`.
+- **Continue:** item 10 stays a WARN; the run goes on and step 10 reports it.
+
+In a resumed run, offer only continue or stop, and say why. Ask once per run: if `origin/master` moves again later, the WARN of step 5 goes to step 10 without stopping the run.
+
 **Run base.** The run base is the `HEAD` before the first slice commit for this plan, and steps 5 and 6 cover everything from it. Look for earlier slice commits of this plan on the branch: `git log --format='%H%n%B' --grep='^Execute-Plan: <plan path>$'`. If there are none, the run base is the `HEAD` recorded above. If there are, this is a resumed run: the run base is the `Execute-Base` trailer of those commits (same command with `--format='%(trailers:key=Execute-Base,valueonly)'`), and their bodies hold the evidence of the slices already done (step 4). A resumed run never uses its own starting `HEAD` as the base, or the review would miss the earlier slices.
 
 ## 1. Resolve the plan
@@ -163,7 +169,7 @@ When a finding needs a decision the plan does not cover (product, ADR, scope or 
 First run the deterministic part of the owner's blockers list from the repository root: `& (Join-Path $skillRoot 'scripts/check-owner-blockers.ps1')`. It compares the working tree with the merge-base of `origin/master`.
 - **Exit 1 (BLOCK):** fix each finding in the main session and run it again.
 - **Exit 2 (UNVERIFIED):** a check could not run, usually `az login` for the dev2 deploy lookup or the fetch of `origin/master`. Resolve it before step 6; never treat it as clean.
-- **WARN:** goes to the reviewer below, who judges whether each one is justified.
+- **WARN:** goes to the reviewer below, who judges whether each one is justified. Item 10 (branch behind `origin/master`, with the commit count) was the dev's call in step 0: do not merge now, do not ask again, and do not hand it to the reviewer.
 
 Send the integrated diff to the `reviewer` subagent once, in fresh context. The integrated diff is `git diff <run base>` (step 0), which spans every slice commit of the run, including those of an earlier session, plus any uncommitted change; `git diff` alone shows only the uncommitted part. Take the traceability table, the artifact search terms, and the deviations from the slice commit bodies. Brief it with:
 - `.cursor/commands/execute-code-review.md`, covering the Standards and Spec axes;
@@ -239,7 +245,8 @@ Record blocked or interrupted runs too. Leave token counts blank when the host d
 Tell the dev:
 - the report path, commit SHA, and gate status;
 - the slice outcomes, correction rounds, and deviations;
-- the time spent per stage.
+- the time spent per stage;
+- every WARN of the owner blockers trap's last run, verbatim, including item 10 with how many commits `origin/master` is ahead.
 
 The next step is `/revise post-gate` in a **new session**, because the implementing session must not audit its own delivery. Do not push or open a PR unless the dev asks.
 
