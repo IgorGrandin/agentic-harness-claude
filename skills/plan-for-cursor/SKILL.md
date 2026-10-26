@@ -244,6 +244,8 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 
 Se algum passe não foi feito, **diga qual e por quê** em vez de omitir. Silêncio não se distingue de esquecimento.
 
+Antes de commitar, rode a parte determinística dos passes: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>` na raiz do repo. Saída 1 (BLOCK) se corrige no plano antes de entregar; saída 2 (UNVERIFIED) vai para a tabela como verificação que não rodou. O script cobre manifesto, cápsula, projeto de teste, Reuso, discriminante e as linhas da tabela; os passes de julgamento continuam sendo seus.
+
 ## O que este arquivo não cobre
 
 Formato de ADR (`domain-modeling`), veredito de auditoria (`revise`, `review-pr`), e a decisão de **se** deve haver plano — que é do dev.

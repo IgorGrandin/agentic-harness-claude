@@ -64,6 +64,8 @@ Reporte:
 
 ## 4. Eixo Execução — o plano é executável como escrito?
 
+Comece pela parte determinística, nos dois modos, da raiz do repo: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`. Ele confere manifesto antes das fatias com SHA-base que resolve, caminho abreviado e `parent_plan:`, projeto de teste inexistente, bloco **Reuso** e discriminante por fatia, e as linhas obrigatórias da tabela de verificações. Cada BLOCK é no mínimo 🟡, citando o item e a linha; UNVERIFIED (saída 2) vai para o relatório como verificação que não rodou. Saída 0 não dispensa a leitura abaixo: o script não julga o teste vizinho, os códigos de erro declarados nem o fixture traçado.
+
 Onde os planos deste repo historicamente vazam:
 
 - **Gate de pronto ausente ou frouxo.** Existe `todo` de gates, e ele bate com a definição de pronto das rules — `110` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`"? **Abra as rules e confira contra elas**, não contra a sua memória do que o gate era: é a fonte, e ela muda. Confira em especial os gatilhos condicionais (Integration, HostSmoke), que são o que os planos costumam esquecer.
