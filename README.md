@@ -76,5 +76,5 @@ O `scripts/verify.ps1` confere o contrato do repositório:
 - **links:** nenhum link quebrado.
 
 Com `-RunTests`, roda também os testes de `tests/`:
-- os resolvers e as métricas do `/execute`;
+- os resolvers e as métricas do `/execute-ig`;
 - o instalador, num `~/.claude` temporário.

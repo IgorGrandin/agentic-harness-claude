@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 Transforma um Work Item em **plano executável pelo Cursor**. Entra um número; sai um `.cursor/plans/wi_<id>_<slug>.plan.md` commitado, mais o `backlog/tasks/<id>-<slug>.md` quando ele ainda não existir.
 
-**O que esta skill não faz:** não escreve código de produto (`CLAUDE.md` §2 — não há exceção para "só uma string" nem para "fix trivial"), não roda `/execute-ig`, não fecha a WI no board. O ciclo completo é `/plan-task` → `/execute` (Cursor) → `/revise`.
+**O que esta skill não faz:** não escreve código de produto (`CLAUDE.md` §2 — não há exceção para "só uma string" nem para "fix trivial"), não roda `/execute-ig`, não fecha a WI no board. O ciclo completo é `/plan-task` → `/execute-ig` (no Cursor ou no Claude Code) → `/revise`.
 
 ---
 

@@ -5,7 +5,7 @@ argument-hint: "número do PR (ex.: 1003)"
 disable-model-invocation: true
 ---
 
-Audita um PR de dev da equipe **antes do merge**. Irmã do `/revise` (que audita ciclos `/execute` do Cursor), com a mesma postura: **não confia na descrição do PR — verifica**. A diferença é a origem do trabalho (dev humano, via Azure DevOps) e o fato de que o desfecho é um **comentário no PR**, não um build-log.
+Audita um PR de dev da equipe **antes do merge**. Irmã do `/revise` (que audita ciclos `/execute-ig`, do Cursor ou do Claude Code), com a mesma postura: **não confia na descrição do PR — verifica**. A diferença é a origem do trabalho (dev humano, via Azure DevOps) e o fato de que o desfecho é um **comentário no PR**, não um build-log.
 
 ## 0. Coordenadas do repositório
 

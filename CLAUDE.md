@@ -37,8 +37,8 @@ You, the main session, implement and run focused checks in your own loop. Subage
 
 1. Do not spawn a subagent for work you can finish in a few tool calls.
 2. Use `scout` for high-volume reading or searching, including large diffs. It returns literal evidence; judgment stays with you.
-3. Use `reviewer` once per delivery, in a fresh context, on the integrated diff against the plan or spec, and once per plan to challenge its coverage matrix. Act only on findings that affect correctness or stated requirements.
-4. Use `verifier` to run the final gate against the exact commit.
+3. Use `reviewer` once per delivery that changes executable behavior (code, scripts, hooks, configuration, gates), in a fresh context, on the integrated diff against the plan or spec, and once per plan to challenge its coverage matrix. Act only on findings that affect correctness or stated requirements. A change limited to prose (docs, skills, plans) needs only the focused check; the per-plan coverage-matrix challenge still applies.
+4. Use `verifier` to run the final gate against the exact commit when the delivery changes executable behavior.
 5. Use `implementer` only for parallel slices with disjoint write-sets, each with `isolation: worktree`. Integration, commits, and gates stay with you.
 6. Use `architect_escalation` for an architecture or specification decision that evidence cannot settle. Send the options and evidence. Opus is the ceiling: never use Fable for escalation or decisions. Re-invoke it at effort `xhigh` only with a packet showing why the first answer was insufficient.
 7. Brief each subagent once with the task, its scope, and what done looks like. Do not redo its work. Send independent subagents in one message so they run concurrently.

@@ -5,7 +5,7 @@ argument-hint: "slug ou data do relatório (opcional — padrão: o mais recente
 disable-model-invocation: true
 ---
 
-Audita o resultado de um ciclo `/execute` do Cursor: implementação + TDD + gate + revisão em dois eixos, já commitado. Esta skill não confia no relatório por si só — ela verifica.
+Audita o resultado de um ciclo `/execute-ig` (do Cursor ou do Claude Code): implementação + TDD + gate + revisão em dois eixos, já commitado. Esta skill não confia no relatório por si só — ela verifica.
 
 ## 0. As duas obrigações mecânicas — invariantes, não passos
 
