@@ -216,6 +216,67 @@ try {
         }
     }
 
+    # Item 3 - API contracts come from the generated schemas. Schema names are the
+    # backend record names, so the check needs neither the API nor the generator.
+    $schemas = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $generatedFiles = @((Invoke-Git @('ls-files')).Lines + @($changes | ForEach-Object Path) | Where-Object { $_ -match $generatedApiPattern } | Sort-Object -Unique)
+    foreach ($p in $generatedFiles) {
+        $text = Get-CurrentText $p
+        if ($null -eq $text) { continue }
+        # Entries sit at the indent of the first code line inside `schemas: {`, whatever the formatter.
+        $indent = -1; $entry = -1
+        foreach ($line in (($text -replace "`r`n", "`n") -replace "`t", '    ') -split "`n") {
+            if ($indent -lt 0) { if ($line -match '^(\s*)schemas\s*:\s*\{') { $indent = $Matches[1].Length }; continue }
+            if ($line -match '^(\s*)\}' -and $Matches[1].Length -le $indent) { break }
+            if ($entry -lt 0) {
+                if ([string]::IsNullOrWhiteSpace($line) -or $line -match '^\s*(/\*|\*|//)') { continue }
+                $entry = ($line -replace '^(\s*).*$', '$1').Length
+            }
+            if ($line -match '^(\s*)["'']?([\w.-]+)["'']?\??\s*:' -and $Matches[1].Length -eq $entry) { [void]$schemas.Add($Matches[2]) }
+        }
+    }
+    if ($generatedFiles.Count -gt 0 -and $schemas.Count -eq 0) {
+        Add-Finding 3 'UNVERIFIED' $generatedFiles[0] 0 'No components.schemas entries found in the generated API types; hand-declared contract types were not checked.'
+    }
+    $contractSuffixes = @('Dto', 'Request', 'Response', 'Body')
+    $backendContracts = [ordered]@{}
+    # Infrastructure holds third-party payloads (webhooks), not the API's own contracts.
+    foreach ($c in $changes | Where-Object { $_.Status -ne 'D' -and $_.Path -match '^platform/backend/src/.+\.cs$' -and $_.Path -notmatch '[./]Infrastructure/' }) {
+        foreach ($a in Get-Added $c.Path) {
+            if ($a.Text -match '\bpublic\s+(?:(?:sealed|abstract|partial|readonly)\s+)*(?:record\s+(?:class\s+|struct\s+)?|class\s+)(\w+(?:Dto|Request|Response|Body))\b' -and -not $backendContracts.Contains($Matches[1])) {
+                $backendContracts[$Matches[1]] = [pscustomobject]@{ Path = $c.Path; Line = $a.Line }
+            }
+        }
+    }
+    # A - a hand-declared type in an HTTP contract file that a schema already gives, or will give.
+    foreach ($c in $changes | Where-Object { $_.Status -ne 'D' -and $_.Path -match '^platform/frontend/.+-api\.model\.ts$' }) {
+        $lines = $null
+        foreach ($a in Get-Added $c.Path) {
+            if ($a.Text -notmatch '^\s*export\s+(?:interface\s+(\w+)([^{]*)|type\s+(\w+)\s*(?:<[^=]*>)?\s*=(.*))') { continue }
+            # The right side of a type, or the extends clause of an interface.
+            # A wrapped right side (`Omit<`, `(`, `|`) continues on the next lines; an interface body does not count.
+            if ($Matches[1]) { $name = $Matches[1]; $rhs = $Matches[2]; $wrapped = $rhs.Trim() -match '[<,]$' }
+            else { $name = $Matches[3]; $rhs = $Matches[4]; $wrapped = $rhs.Trim() -match '^$|[<(|&,]$' }
+            if ($wrapped) {
+                if ($null -eq $lines) { $lines = ((Get-CurrentText $c.Path) -replace "`r`n", "`n") -split "`n" }
+                for ($k = $a.Line; $k -lt [Math]::Min($a.Line + 2, $lines.Count); $k++) { $rhs += ' ' + $lines[$k] }
+            }
+            if ($rhs -match '\b(Schemas|components)\s*\[') { continue }
+            $candidates = @($name) + @($contractSuffixes | ForEach-Object { "$name$_" })
+            $schema = $candidates | Where-Object { $schemas.Contains($_) } | Select-Object -First 1
+            if ($schema) { Add-Finding 3 'BLOCK' $c.Path $a.Line "$name is declared by hand; the generated schema $schema exists. Use Schemas['$schema']."; continue }
+            $contract = $candidates | Where-Object { $backendContracts.Contains($_) } | Select-Object -First 1
+            if ($contract) { Add-Finding 3 'BLOCK' $c.Path $a.Line "$name is declared by hand for $contract, which this branch added to the backend. Start the API, run npm run gen:broker-api, and use Schemas['$contract']." }
+        }
+    }
+    # B - a backend contract the generated files do not know yet: the generator did not run.
+    if ($schemas.Count -gt 0) {
+        foreach ($name in $backendContracts.Keys | Where-Object { -not $schemas.Contains($_) }) {
+            $where = $backendContracts[$name]
+            Add-Finding 3 'WARN' $where.Path $where.Line "$name is not in the generated API types. If the API exposes it, start the API and run npm run gen:broker-api (or gen:admin-api)."
+        }
+    }
+
     # Item 4 - new migrations: RLS FORCE and contraction.
     $newMigrations = @($changes | Where-Object { $_.Status -eq 'A' -and $_.Path -match $migrationPattern -and $_.Path -notmatch $snapshotPattern } | ForEach-Object Path)
     $enabled = @{}; $forced = @{}
