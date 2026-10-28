@@ -207,10 +207,13 @@ Confirm that `git rev-parse HEAD` is the commit to gate and that `git status --p
 4. Send the gate to the `verifier` subagent with:
    - the commit SHA;
    - the owner blockers trap, run before the gate: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-owner-blockers.ps1')`. Exit 0 is required; 1 is red and 2 is unverified;
+   - the static-analysis trap that `execute.md` §4 and rule `110` define for each side the diff touches, run exactly as defined, including its report flag, and any build it declares as input. It runs before the gate, not after. Exit 0 is required. Exit 1 (blocking verdicts) or 2 (tool error) does not run the gate; a tool error is not a pass. Recheck that `git status --porcelain=v1 --untracked-files=all` is still empty after the trap, since a declared build may write into the tree;
    - `devops/scripts/run-gate.ps1 -OutDir <GateOutDir>`;
    - the project list, passed as an in-process splat (`$splat = @{ BackendProjects = @('a.csproj','b.csproj'); OutDir = '<GateOutDir>' }; & .\devops\scripts\run-gate.ps1 @splat`) or with `-File` (a comma list arrives as one string, which the script splits; valid since `c71b5c01`).
 
-   It runs the gate in the background and checks `HEAD` and the clean tree before and after.
+   Order inside the verifier: owner blockers, then the static trap, then the clean-tree recheck, then the gate. If the owner blockers or the static trap is red or unverified, do not run the gate: report the command, its exit status, and each blocking line (rule, file, line, and the verdict label the project prints), and mark the gate as not run.
+
+   The gate runs in the background and checks `HEAD` and the clean tree before and after.
 5. Read the manifest. The evidence is valid only when `status` is `VALID`, the manifest `HEAD` equals the commit, and the tree stayed clean. The gate passed only when `result` is `GREEN`: `status=VALID` with `result=RED` is a valid red gate. Then run `devops/scripts/run-gate.ps1 -FingerprintOnly` and confirm the output equals the manifest's `gateTreeFingerprint`.
 
 The gate script stops early on environment problems. Treat these as environment issues, not code failures:
