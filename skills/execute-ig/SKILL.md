@@ -17,32 +17,42 @@ The dev configures permissions, never this skill. If a permission rule (such as 
 
 In BrixBroker, implement slices in the main session only, without `implementer` subagents in worktrees. Whether a worktree subagent inherits the session's permissions and instructions is unverified.
 
+## Run map and invariants
+
+Read this before any command. The run has one fixed order; each step is defined below.
+
+`0 start → 1 resolve plan → 2 preflight → 4 slices (loop) → 5 integration review → 6 commit fixes → 7 final gate → 8 report → 9 metrics → 10 hand off`
+
+Invariants. They override anything in `execute.md` or in the rules that reads differently:
+1. **One gate per run: step 7, against the last commit, on a clean tree.** Before step 7 you never run `devops/scripts/run-gate.ps1`, `dotnet test` on a whole project without `--filter`, a full frontend suite, or any "debug round" of the suite. Between slices only focused checks run: the tests the slice adds or changes, scoped with `--filter` or the project's targeted command.
+2. **"Definição de pronto" in rules `110` and `060` and in `execute.md` §4 is the step 7 gate.** It is not a slice-approval criterion. A slice is approved by the criteria in step 4.
+3. **Order differs from `execute.md`.** There: one commit after the gate, with the review before it. Here: one commit per approved slice, then the integration review, then the gate against the last commit. Where `execute.md` says "gate, then commit" or "one commit", the order here wins.
+4. **Stage by explicit path.** Never `git commit -a`, `git add -A` or `git add .`.
+5. **Scope is the plan.** A decision the plan does not cover goes to the dev (step 4, "Decisions during execution").
+6. **This session never audits itself:** `/revise post-gate` runs in a new session (step 10).
+7. **Not sure which step you are in?** Stop at the current step and say so. Never run a gate-like command to find out.
+
 ## Contract source
 
-The repository's own `.cursor/commands/execute.md` is the contract for this workflow. Open it and follow it in full, including what it opens in turn:
+The repository's own `.cursor/commands/execute.md` is the contract for this workflow. Open it and follow it in full, except where the map below says otherwise. It opens in turn:
 - the preflight, via `.cursor/commands/analise.md` with `modo=preflight-execute`;
 - TDD, via `.cursor/commands/execute-tdd.md`;
 - the two-axis review, via `.cursor/commands/execute-code-review.md`;
-- the gate rules `110` and `060`;
-- the report template, the test traceability table, and the completeness check;
-- the `rodadas.csv` line.
+- the gate rules `110` and `060`.
 
-Do not copy those files here. The deltas below are the only intended differences.
+Do not copy those files here. This map is the only intended difference, section by section:
 
-| Topic | `.cursor/commands/execute.md` | This skill |
-|---|---|---|
-| Plan resolution | context, explicit path, or newest plan | exact WI resolver; never by recency (step 1) |
-| Decisions | the plan | the Work Item's "Decisões do dev" section is the source of truth (step 1) |
-| Implementation | one executor | main session; `implementer` subagents only for parallel slices outside BrixBroker (step 4) |
-| Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
-| Commits | one, after the gate | one per approved slice (step 4), plus one for integration-review fixes (step 6) |
-| Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against the last commit (steps 6–7) |
-| Gate scope | `Integration` and `HostSmoke` leave the local gate when the delivery goes to a PR in `master` and the diff touches `platform/backend/**` | same; in BrixBroker every WI ends in a PR, so the delegation is the default (step 7) |
-| Completeness check | items 1–4 and 6–7 before the commit, 5 after | items 1–3 at step 6, over the whole run; 4–7 after the gate (steps 6 and 8) |
-| Reuse | not covered | search before each new artifact; a missed equivalent is a deviation (step 4); reviewer checks the diff against the repository (step 5) |
-| Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add -- <file>` before each mutant (also for new files), then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
-| Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
-| Metrics | `rodadas.csv` | `rodadas.csv` plus `execute-rodadas.csv` (step 9) |
+| `execute.md` | Here |
+|---|---|
+| §0 capsule | as written |
+| §1 identify the plan, preflight | exact WI resolver, never by recency (step 1); the Work Item's "Decisões do dev" is the source of truth; preflight as written (step 2) |
+| §2 implement, deviations, mutant rounds | main session, one commit per approved slice, reuse search before each new artifact (step 4); `implementer` only outside BrixBroker |
+| §3 two-axis review, before the gate | one `reviewer` subagent on the integrated diff, after all slice commits (step 5) |
+| §4 gate | step 7 only; Integration and HostSmoke delegated to pipeline 158 by default (step 7) |
+| §5 report, completeness check | step 8; items 1–3 at step 6 over the whole run, 4–7 after the gate |
+| §6 commit | replaced: slice commits (step 4) and one fix commit (step 6) |
+| §7 `rodadas.csv` | step 9, plus `execute-rodadas.csv` |
+| §8 notify | step 10 |
 
 Shared scripts live outside the checkout. Set `$skillRoot = Join-Path $env:USERPROFILE '.claude/skills/execute-ig'`.
 
@@ -111,6 +121,8 @@ A gate for an earlier SHA never validates the changed tree.
 
 ## 4. Implement slices
 
+This step runs no gate. Per slice, run only focused checks; the one gate is step 7.
+
 The main session implements, following `execute-tdd.md`. Work one slice at a time, observe red before green, and record the deviation rules of `execute.md` §2.
 
 **One commit per approved slice.** Commit only when a slice is approved, never mid-slice, per phase, or as a checkpoint. Inside a slice the checkpoint is the index (`git add`), described below. Never use `git commit -a`, `git add -A` or `git add .` during a run: during a mutant round they stage or commit the mutant itself. Stage by explicit path.
@@ -147,7 +159,7 @@ For each slice:
   - **configuration:** search for the value the setting carries (URL, host, timeout, connection string), not only its name, across the places listed in pass 12. The same key changes shape between layers (`Smtp:Host` in `appsettings` is `Smtp__Host` in the environment). Never tell the dev to set a variable the repository already defines.
 
   If the search finds an equivalent the plan missed, reuse it when that stays inside the slice's write-set and changes no shared or public contract, and record it as a deviation (`execute.md` §2). Otherwise it changes the plan: apply "Decisions during execution" below. Record the search terms for every artifact the slice creates, so the reviewer can check them;
-- run the focused checks, scoped to the slice: the tests the slice adds or changes, with `--filter` or the project's targeted command. A focused check is not the gate. Never run `devops/scripts/run-gate.ps1`, a whole gate project, or the full suite per slice: the gate runs once, in step 7, against the last commit;
+- run the focused checks, scoped to the slice: the tests the slice adds or changes, with `--filter` or the project's targeted command. A focused check is not the gate. An Integration or HostSmoke test that the slice itself adds or changes still runs locally with `--filter` (it is the red/green cycle and the discriminant, and needs Docker); the delegation to pipeline 158 covers only the gate's whole projects. Never run `devops/scripts/run-gate.ps1`, a whole gate project, or the full suite per slice: the gate runs once, in step 7, against the last commit;
 - keep the literal red output for the elected discriminant;
 - when a mutant round applies (`execute.md` §"Rodadas de mutante"), check Docker once before the first mutant that runs Integration or HostSmoke, even when the gate delegates those suites (mutants stay local). Before **each** mutant run `git add -- <file>` on the implementation file (new files too, or the checkout fails with `pathspec did not match`), then apply the mutant. Re-stage every time: the implementation changes between mutants. Revert only with `git checkout -- <file>`, which restores from the index, and confirm with `git diff --quiet -- <file>`, never with `git status --porcelain` and never from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
 - fill the slice's rows of the test traceability table from `execute.md` §5, one row per plan test ID, with the assertion's `path:line`, the label, and the literal red for each `[visto]`;
@@ -193,6 +205,8 @@ If the review led to fixes, stage only the intended implementation and plan file
 Confirm that `git rev-parse HEAD` is the commit to gate and that `git status --porcelain=v1 --untracked-files=all` is empty. If the tree is not clean, resolve ownership before any gate.
 
 ## 7. Final gate against the commit
+
+This is the first and only gate of the run. Preconditions: every slice committed, step 5 done, step 6 done, tree clean.
 
 "The commit" from here on is the gated commit: `HEAD` after step 6, the last commit of the run. It is the `-CommitSha` below, the report's commit, and the metrics' `commit_sha`. Slice commit SHAs appear only in the report's slice table.
 
