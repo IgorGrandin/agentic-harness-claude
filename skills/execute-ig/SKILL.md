@@ -37,7 +37,7 @@ Do not copy those files here. The deltas below are the only intended differences
 | Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
 | Commits | one, after the gate | one per approved slice (step 4), plus one for integration-review fixes (step 6) |
 | Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against the last commit (steps 6–7) |
-| Gate scope | `Integration` and `HostSmoke` leave the local gate when the delivery goes to a PR in `master` and the diff touches `platform/backend/**` | same; the plan's manifest must say whether the delivery goes to a PR (step 7) |
+| Gate scope | `Integration` and `HostSmoke` leave the local gate when the delivery goes to a PR in `master` and the diff touches `platform/backend/**` | same; in BrixBroker every WI ends in a PR, so the delegation is the default (step 7) |
 | Completeness check | items 1–4 and 6–7 before the commit, 5 after | items 1–3 at step 6, over the whole run; 4–7 after the gate (steps 6 and 8) |
 | Reuse | not covered | search before each new artifact; a missed equivalent is a deviation (step 4); reviewer checks the diff against the repository (step 5) |
 | Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add -- <file>` before each mutant (also for new files), then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
@@ -205,9 +205,8 @@ Confirm that `git rev-parse HEAD` is the commit to gate and that `git status --p
 
    The resolver accepts only the existing `claude-handoffs/Broker/` root that holds both `execute-gates` and `execute-reports`.
 3. Choose the gate projects by the triggers in rules `110` and `060`, as `execute.md` §4 requires, then apply the PR delegation (rule `110` §"Quem prova o quê"):
-   - **Delegated:** the plan's manifest says the delivery goes to a PR in `master` and the diff touches `platform/backend/**`. Leave `Integration.Tests` and the three `HostSmoke` out of the list. The local gate is build, `Unit`, `Architecture`, the static trap, and the frontend when touched (about 5 min). Docker is not needed for the gate; `docker: false` in the manifest does not invalidate items 1–3.
-   - **Not delegated:** the manifest says no PR, or that pipeline 158 will not fire. The full list of triggers 4 and 5 runs locally; run `docker info` first, and if Docker does not answer, stop and report.
-   - **Manifest silent:** ask the dev once, record the answer in the manifest as its own commit (`git commit --only`), and never assume delegation.
+   - **Delegated (default):** every WI ends in a PR in `master`, opened by the dev after the run, never between slices. When the diff touches `platform/backend/**`, leave `Integration.Tests` and the three `HostSmoke` out of the list. The local gate is build, `Unit`, `Architecture`, the static trap, and the frontend when touched (about 5 min). Docker is not needed for the gate; `docker: false` in the manifest does not invalidate items 1–3.
+   - **Not delegated:** only when the dev says this delivery will not go to a PR, or that pipeline 158 will not fire (the rule conditions the exemption on 158 firing, not on intent). Then the full list of triggers 4 and 5 runs locally; run `docker info` first, and if Docker does not answer, stop and report.
    - Whatever is delegated gets its `⏭️` line in the report (step 8). A suite that a trigger requires and that is neither run nor delegated is a missing gate.
 4. Send the gate to the `verifier` subagent with:
    - the commit SHA;
