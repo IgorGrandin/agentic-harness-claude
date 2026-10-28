@@ -37,7 +37,8 @@ Do not copy those files here. The deltas below are the only intended differences
 | Review | executor runs the two axes | one `reviewer` subagent pass in fresh context on the integrated diff (step 5) |
 | Commits | one, after the gate | one per approved slice (step 4), plus one for integration-review fixes (step 6) |
 | Gate order | gate, then commit, with fingerprint binding | commit on a clean tree, then the final gate against the last commit (steps 6–7) |
-| Completeness check | items 1–4 and 6 before the commit, 5 after | items 1–3 at step 6, over the whole run; 4–6 after the gate (steps 6 and 8) |
+| Gate scope | `Integration` and `HostSmoke` leave the local gate when the delivery goes to a PR in `master` and the diff touches `platform/backend/**` | same; the plan's manifest must say whether the delivery goes to a PR (step 7) |
+| Completeness check | items 1–4 and 6–7 before the commit, 5 after | items 1–3 at step 6, over the whole run; 4–7 after the gate (steps 6 and 8) |
 | Reuse | not covered | search before each new artifact; a missed equivalent is a deviation (step 4); reviewer checks the diff against the repository (step 5) |
 | Mutant revert | `git checkout -- <file>`, then `git status --porcelain` must not list the file | `git add -- <file>` before each mutant (also for new files), then `git checkout -- <file>`, then `git diff --quiet -- <file>` (step 4) |
 | Verdict | `/revise` afterwards | `/revise post-gate` in a **new session**, never this one (step 10) |
@@ -148,7 +149,7 @@ For each slice:
   If the search finds an equivalent the plan missed, reuse it when that stays inside the slice's write-set and changes no shared or public contract, and record it as a deviation (`execute.md` §2). Otherwise it changes the plan: apply "Decisions during execution" below. Record the search terms for every artifact the slice creates, so the reviewer can check them;
 - run the focused checks, scoped to the slice: the tests the slice adds or changes, with `--filter` or the project's targeted command. A focused check is not the gate. Never run `devops/scripts/run-gate.ps1`, a whole gate project, or the full suite per slice: the gate runs once, in step 7, against the last commit;
 - keep the literal red output for the elected discriminant;
-- when a mutant round applies (`execute.md` §"Rodadas de mutante"), before **each** mutant run `git add -- <file>` on the implementation file, then apply the mutant. Re-stage before every mutant: the implementation changes between mutants, so an earlier stage is stale. A new file needs the same `git add`, or the checkout fails with `pathspec did not match`. Revert only with `git checkout -- <file>`, which restores from the index, so the staged implementation survives (without the stage, the checkout also discards the implementation). Confirm the revert with `git diff --quiet -- <file>` (working tree equals index), never with `git status --porcelain`: with the stage it still lists `M  <file>`, and without it the list is empty exactly when the implementation was lost. Never restore from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
+- when a mutant round applies (`execute.md` §"Rodadas de mutante"), check Docker once before the first mutant that runs Integration or HostSmoke, even when the gate delegates those suites (mutants stay local). Before **each** mutant run `git add -- <file>` on the implementation file (new files too, or the checkout fails with `pathspec did not match`), then apply the mutant. Re-stage every time: the implementation changes between mutants. Revert only with `git checkout -- <file>`, which restores from the index, and confirm with `git diff --quiet -- <file>`, never with `git status --porcelain` and never from a copy (it keeps the old timestamp and MSBuild reuses the mutant binary). If a permission rule blocks that command, stop and tell the dev;
 - fill the slice's rows of the test traceability table from `execute.md` §5, one row per plan test ID, with the assertion's `path:line`, the label, and the literal red for each `[visto]`;
 - record changed paths, results, and elapsed time.
 
@@ -203,7 +204,11 @@ Confirm that `git rev-parse HEAD` is the commit to gate and that `git status --p
    ```
 
    The resolver accepts only the existing `claude-handoffs/Broker/` root that holds both `execute-gates` and `execute-reports`.
-3. Choose the gate projects by the triggers in rules `110` and `060`, as `execute.md` §4 requires. Run `docker info` first when `Integration` or `HostSmoke` is in the list; if Docker does not answer, stop and report.
+3. Choose the gate projects by the triggers in rules `110` and `060`, as `execute.md` §4 requires, then apply the PR delegation (rule `110` §"Quem prova o quê"):
+   - **Delegated:** the plan's manifest says the delivery goes to a PR in `master` and the diff touches `platform/backend/**`. Leave `Integration.Tests` and the three `HostSmoke` out of the list. The local gate is build, `Unit`, `Architecture`, the static trap, and the frontend when touched (about 5 min). Docker is not needed for the gate; `docker: false` in the manifest does not invalidate items 1–3.
+   - **Not delegated:** the manifest says no PR, or that pipeline 158 will not fire. The full list of triggers 4 and 5 runs locally; run `docker info` first, and if Docker does not answer, stop and report.
+   - **Manifest silent:** ask the dev once, record the answer in the manifest as its own commit (`git commit --only`), and never assume delegation.
+   - Whatever is delegated gets its `⏭️` line in the report (step 8). A suite that a trigger requires and that is neither run nor delegated is a missing gate.
 4. Send the gate to the `verifier` subagent with:
    - the commit SHA;
    - the owner blockers trap, run before the gate: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-owner-blockers.ps1')`. Exit 0 is required; 1 is red and 2 is unverified;
@@ -232,10 +237,11 @@ Never report an earlier commit's gate as validation for a fix. Never edit code o
 
 ## 8. Report
 
-Write the report at the resolved `ReportPath`, using exactly the template from `execute.md` §5, then run completeness items 4–6 (Docker evidence, fingerprint line, gates not run). Three adjustments:
+Write the report at the resolved `ReportPath`, using exactly the template from `execute.md` §5, then run completeness items 4–7 (Docker evidence, fingerprint line, gates not run, suites delegated to the pipeline). Four adjustments:
 - **`Commit` field:** the gated commit, followed by `run base: <Execute-Base>` and the number of commits in `<run base>..<gated commit>`. The template has one field because `execute.md` makes one commit.
 - **Gate section:** the manifest `HEAD` equals the commit. Instead of the post-commit binding paragraph, record the observed `HEAD`, the branch, the clean-tree status, and the line `fingerprint pós-commit: <literal output> · igual ao do manifesto: sim|não`.
 - **Slice table:** add the per-slice table from [references/metrics.md](references/metrics.md), built from the slice commit bodies for slices done in an earlier session.
+- **Delegated suites:** one line per suite, `⏭️ não rodado — provado pelo Gate de PR Backend (pipeline 158); gatilho N teria disparado`. Without it `/revise` treats the suite as forgotten. Delegated is not proven: say in the report that the delivery is ready only with a green 158 run over the PR's last iteration.
 
 ## 9. Metrics
 
@@ -251,6 +257,8 @@ Tell the dev:
 - the time spent per stage;
 - every WARN of the owner blockers trap's last run, verbatim, including item 10 with how many commits `origin/master` is ahead.
 
-The next step is `/revise post-gate` in a **new session**, because the implementing session must not audit its own delivery. Do not push or open a PR unless the dev asks.
+When suites were delegated, say so and name them: the PR is the dev's call (push and PR only when they ask), and each push re-fires pipeline 158 on `refs/pull/<n>/merge`. The delivery counts as done only with a green run over the last iteration. A run of an earlier iteration does not cover a later push, and a red run is fixed and pushed again, not relaunched. Without a PR, or when 158 does not fire, the delegation lapses and the full local list applies.
+
+The next step is `/revise post-gate` in a **new session**, because the implementing session must not audit its own delivery. It reads the 158 run for the delegated suites. Do not push or open a PR unless the dev asks.
 
 Never claim a gate passed if it was skipped, failed, or observed another commit or tree.

@@ -111,6 +111,8 @@ Projeto citado no plano tem de existir na branch: `ls platform/backend/tests/` a
 
 Derive o gate dos gatilhos em `.cursor/rules/110-cursor-workflow.mdc` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`" — **abra os dois**. No plano, diga qual gatilho disparou e **qual não disparou, e por quê**.
 
+Com PR em `master` tocando `platform/backend/**`, `Integration.Tests` e `HostSmoke` não entram no gate local: o plano os lista como "delegado à 158", com o gatilho que disparou, em vez de omiti-los (`110` §"Quem prova o quê"). Sem PR, a lista inteira vale local.
+
 Somar suítes "por precaução" não é rigor; o ADR-0037 chama isso de custo que reaparece a cada iteração.
 
 > Caso: pus `Broker.HostSmoke` numa fatia que não tocava `Program.cs` nem `*Endpoints*.cs`.
@@ -213,6 +215,7 @@ O que só quem escreve o plano sabe, e por isso não pode ficar para o executor:
   > Caso (2026-10-02, WI 3648): nas duas rodadas o executor marcou o SHA-base como desatualizado e o trocou pelo `HEAD` com o plano. A frase "o commit deste plano entra por cima dele" estava no manifesto e não bastou, porque o contrato do executor não dizia nada sobre isso.
 - **Invariantes:** o que **não pode** mudar (arquivos intocáveis, decisões técnicas, "sem push", "não editar build-log"). Invariante escrita pelo executor é palpite dele sobre a sua intenção.
 - **Seletores/contratos novos:** os nomes que o diff vai criar (rota, método de porta, código de erro, campo de DTO), para a pré-análise conferir só o delta.
+- **Destino da entrega:** diga no manifesto, em uma linha, se a entrega vai para PR em `master`. O `/execute-ig` só tira `Integration.Tests` e os `HostSmoke` do gate local (decisão do owner, 2026-10-28; `110` §"Quem prova o quê") quando o manifesto diz que vai e o diff toca `platform/backend/**`. Manifesto calado obriga o executor a perguntar ao dev. Declare também quais suítes ficam delegadas ao `Gate de PR Backend` (pipeline 158) e o gatilho (4 ou 5) de cada uma.
 - Paths/superfícies e iteração/gate: derivados das fatias e do passe 5.
 
 > Caso que originou a seção (2026-09-25): os planos da WI 3551 e o plano de correção dela saíram sem manifesto. O Kilo e o Codex reclamaram, um em cada rodada, e cada um escreveu o seu. O owner já tinha visto essa reclamação várias vezes. A causa era esta skill: ela nunca tinha mencionado o manifesto, então ele só entrava nos planos quando eu lembrava.

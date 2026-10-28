@@ -27,6 +27,7 @@
     "revise",
     "revise-and-deploy",
     "sdd-workflow",
+    "spec-frontend",
     "spec-task",
     "systematic-debugging",
     "takeover"
