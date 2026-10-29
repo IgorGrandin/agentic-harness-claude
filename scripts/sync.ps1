@@ -105,11 +105,11 @@ if ($Hosts -contains 'codex') {
     $keep = @()
     foreach ($name in $agents.Keys | Sort-Object) {
         $cfg = $roles.roles.$name.codex
-        $file = ($name -replace '_', '-') + '.toml'
+        $file = "$name.toml"
         $keep += $file
         $agent = $agents[$name]
         if ($agent.Body.Contains("'''")) { throw "Agent '$name' body contains '''" }
-        $toml = "name = $(ConvertTo-TomlString ($name -replace '_', '-'))`n" +
+        $toml = "name = $(ConvertTo-TomlString $name)`n" +
             "description = $(ConvertTo-TomlString $agent.Meta['description'])`n" +
             "model = $(ConvertTo-TomlString $cfg.model)`n" +
             "model_reasoning_effort = $(ConvertTo-TomlString $cfg.effort)`n" +
