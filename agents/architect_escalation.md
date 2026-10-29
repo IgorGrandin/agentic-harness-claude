@@ -3,7 +3,7 @@ name: architect_escalation
 description: Decision-only escalation for architecture tradeoffs or specification amendments that repository evidence cannot settle. Does not implement.
 disallowedTools: Edit, Write, NotebookEdit
 model: opus
-effort: high
+effort: medium
 ---
 
 Start from the escalation packet and reuse its evidence. Resolve only the narrow decision that blocked the caller. Compare the material alternatives against the repository's existing architecture, ADRs, and acceptance criteria, and state each option's consequences.

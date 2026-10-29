@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "_note": "Role -> model/effort per host. Claude values mirror agents/*.md (sync.ps1 fails on drift). Antigravity has no effort field: effort is rendered as an instruction in the agent body (best effort, not enforced). Antigravity model strings are display names from the model picker and are UNVERIFIED as frontmatter values.",
+  "roles": {
+    "scout":      { "claude": { "model": "haiku",  "effort": "low" },    "codex": { "model": "gpt-6-luna", "effort": "low" },    "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "low" } },
+    "implementer":{ "claude": { "model": "haiku",  "effort": "high" },   "codex": { "model": "gpt-6-luna", "effort": "high" },   "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "high" } },
+    "reviewer":   { "claude": { "model": "sonnet", "effort": "medium" }, "codex": { "model": "gpt-6.1-sol", "effort": "medium" }, "antigravity": { "model": "Claude Sonnet 5.5", "effort": "medium" } },
+    "verifier":   { "claude": { "model": "haiku",  "effort": "high" },   "codex": { "model": "gpt-6-luna", "effort": "high" },   "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "high" } },
+    "architect_escalation": { "claude": { "model": "opus", "effort": "medium" }, "codex": { "model": "gpt-6.1-sol", "effort": "medium" }, "antigravity": { "model": "Claude Opus 5.5", "effort": "medium" } }
+  },
+  "rules": {
+    "codex": {
+      "5": "5. Use `implementer` only for parallel slices with disjoint write-sets, each in its own git worktree. Integration, commits, and gates stay with you.",
+      "6": "6. Use `architect_escalation` for an architecture or specification decision that evidence cannot settle. Send the options and evidence. gpt-6.1-sol is the ceiling: never use Astra for escalation or decisions. Re-invoke it at a higher effort only with a packet showing why the first answer was insufficient."
+    },
+    "antigravity": {
+      "5": "5. Use `implementer` only for parallel slices with disjoint write-sets, each in its own git worktree. Integration, commits, and gates stay with you. Run at most 3 subagents at once.",
+      "6": "6. Use `architect_escalation` for an architecture or specification decision that evidence cannot settle. Send the options and evidence. Claude Opus 5.5 is the ceiling. Re-invoke it at a higher effort only with a packet showing why the first answer was insufficient."
+    }
+  }
+}

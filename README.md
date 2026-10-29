@@ -19,10 +19,10 @@ O plano de construção e as decisões estão em
 
 ## Modelos
 
-A sessão principal (root) roda em Sonnet 5.5 com effort medium e implementa a
-maior parte do trabalho. Para planejar (`/plan-task`, `/plan-for-cursor`,
-`/change-task`) e para slices difíceis, troque a root com `/model opus`; o Opus
-também fica no `architect_escalation`.
+A sessão principal (root) usa o modelo e o effort escolhidos na sessão; o harness
+não os fixa. Ela implementa a maior parte do trabalho. Para planejar
+(`/plan-task`, `/plan-for-cursor`, `/change-task`) e para slices difíceis, troque
+a root com `/model`; o Opus também fica no `architect_escalation`.
 
 | Agente | Modelo | Effort | Restrição |
 |---|---|---|---|
@@ -30,7 +30,7 @@ também fica no `architect_escalation`.
 | implementer | `haiku` | high | Não abre subagentes; usado com `isolation: worktree` |
 | reviewer | `sonnet` | medium | Não edita |
 | verifier | `haiku` | high | Não edita |
-| architect_escalation | `opus` (teto: Opus; nunca Fable) | high, depois xhigh | Não edita; só decide |
+| architect_escalation | `opus` (teto: Opus; nunca Fable) | medium, depois xhigh | Não edita; só decide |
 
 Os modelos usam aliases, então acompanham a versão mais nova de cada família.
 Não defina `CLAUDE_CODE_EFFORT_LEVEL` no ambiente: essa variável sobrepõe o
@@ -81,3 +81,7 @@ O `scripts/verify.ps1` confere o contrato do repositório:
 Com `-RunTests`, roda também os testes de `tests/`:
 - os resolvers e as métricas do `/execute-ig`;
 - o instalador, num `~/.claude` temporário.
+
+## Outros hosts
+
+Codex e Antigravity são gerados por `scripts/sync.ps1`; veja [docs/multi-ia-sync.md](docs/multi-ia-sync.md).

@@ -15,11 +15,11 @@ congelado: não é apagado e serve de backup e rollback.
 
 | # | Decisão | Fonte |
 |---|---|---|
-| T1 | O Claude Code passa a ser o agente principal; o Codex deixa de receber manutenção | owner, 2026-10-15 |
+| T1 | O Claude Code passa a ser o agente principal; o Codex deixa de receber manutenção (reaberta em 2026-10-29: Codex e Antigravity voltam a ser gerados por scripts/sync.ps1, mesma fonte única) | owner, 2026-10-15 |
 | T2 | O v4 é congelado, não apagado. As instalações do Codex (`~/.codex`, `~/.agents`, `~/.agentic-harness`) não são tocadas | owner + este plano |
 | T3 | As skills do BrixBroker ficam fora do repo do produto, em `~/.claude/skills/`, exclusivas do owner | ADR-0039 do BrixBroker (`docs/adr/0039-...md:64-66`) |
-| T4 | Root: Sonnet 5.5 em effort medium; Opus ou effort high em slices difíceis | owner, 2026-10-15 |
-| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `sonnet`/medium (revisado em 2026-10-21; o Opus fica na root, para planejar, e no architect_escalation); verifier `sonnet`/medium; architect `opus`/high → `opus`/xhigh (Opus é o teto; Fable proibido) | recomendação Anthropic + owner, 2026-10-15 |
+| T4 | Root: modelo e effort da sessão, não fixados pelo harness (revisado em 2026-10-29; antes: Sonnet 5.5 medium; Opus ou effort high em slices difíceis | owner, 2026-10-15 |
+| T5 | Roles: scout `haiku`/low; implementer `sonnet`/medium; reviewer `sonnet`/medium (revisado em 2026-10-21; o Opus fica na root, para planejar, e no architect_escalation); verifier `sonnet`/medium; architect `opus`/high → `opus`/xhigh (Opus é o teto; Fable proibido); revisão 2026-10-29: implementer e verifier haiku/high (estado real), architect opus/medium; Codex: luna low/high/high, sol medium (reviewer e architect); Antigravity: Flash low/high/high, Sonnet 5.5 e Opus 5.5 medium | recomendação Anthropic + owner, 2026-10-15 |
 | T6 | Os nomes das skills não mudam (`/plan-task`, `/revise`...), porque o ADR-0039 e os hábitos do owner os citam | ADR-0039 |
 
 ## Decisões abertas (com recomendação)
