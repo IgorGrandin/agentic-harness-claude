@@ -15,7 +15,9 @@ param(
 # invocation rewrites + agents/openai.yaml metadata.
 # Writes:
 #   <CodexHome>/AGENTS.md, <CodexHome>/agents/*.toml, <CodexHome>/skills/<skill>/**
-#   <GeminiHome>/GEMINI.md, <GeminiHome>/config/agents/*.md, <GeminiHome>/config/skills/<skill>/**
+#   <GeminiHome>/GEMINI.md, <GeminiHome>/config/AGENTS.md,
+#   <GeminiHome>/config/agents/<role>/agent.md, <GeminiHome>/config/hooks/seed-subagents.ps1,
+#   <GeminiHome>/config/hooks.json, <GeminiHome>/config/skills/<skill>/**
 # Replaced or removed items are backed up first under <home>/portable-backups/<timestamp>/.
 
 Set-StrictMode -Version Latest
@@ -103,6 +105,20 @@ function Remove-StaleFiles([string]$Home_, [string]$RelativeDir, [string]$Extens
             New-Item -ItemType Directory -Force (Split-Path $backup) | Out-Null
             Copy-Item -LiteralPath $file.FullName -Destination $backup -Force
             Remove-Item -LiteralPath $file.FullName -Force
+        }
+    }
+}
+
+function Remove-StaleDirs([string]$Home_, [string]$RelativeDir, [string[]]$Keep) {
+    $dir = Assert-InsideHome $Home_ (Join-Path $Home_ $RelativeDir)
+    if (-not (Test-Path -LiteralPath $dir)) { return }
+    foreach ($sub in Get-ChildItem -LiteralPath $dir -Directory) {
+        if ($Keep -contains $sub.Name) { continue }
+        if ($PSCmdlet.ShouldProcess($sub.FullName, 'Remove legacy directory (backed up)')) {
+            $backup = Assert-InsideHome $Home_ (Join-Path $Home_ (Join-Path 'portable-backups' (Join-Path $stamp (Join-Path $RelativeDir $sub.Name))))
+            New-Item -ItemType Directory -Force (Split-Path $backup) | Out-Null
+            Copy-Item -LiteralPath $sub.FullName -Destination $backup -Recurse -Force
+            Remove-Item -LiteralPath $sub.FullName -Recurse -Force
         }
     }
 }
@@ -227,18 +243,131 @@ if ($Hosts -contains 'codex') {
 
 if ($Hosts -contains 'antigravity') {
     $home_ = [IO.Path]::GetFullPath($GeminiHome).TrimEnd('\', '/')
-    Write-Generated $home_ 'GEMINI.md' (Get-Rules 'antigravity')
-    $keep = @()
+    $agyRules = Get-Rules 'antigravity'
+    Write-Generated $home_ 'GEMINI.md' $agyRules
+    Write-Generated $home_ 'config/AGENTS.md' $agyRules
+
+    $keepDirs = @()
     foreach ($name in $agents.Keys | Sort-Object) {
         $cfg = $roles.roles.$name.antigravity
-        $file = "$name.md"
-        $keep += $file
+        $keepDirs += $name
         $agent = $agents[$name]
-        $md = "---`nname: $name`ndescription: $($agent.Meta['description'])`nmodel: $($cfg.model)`n---`n`n" +
-            "Reasoning effort: $($cfg.effort). Match depth of analysis to this level.`n`n$($agent.Body)`n"
-        Write-Generated $home_ "config/agents/$file" $md
+        $toolLines = ($cfg.tools | ForEach-Object { "    - $_" }) -join "`n"
+        $md = "---`n" +
+            "name: $name`n" +
+            "description: $($agent.Meta['description'])`n" +
+            "tools:`n" +
+            "$toolLines`n" +
+            "hidden: true`n" +
+            "---`n`n" +
+            "# Agent System Instructions`n`n" +
+            "Target model: $($cfg.model) (invoke_subagent tier: $($cfg.subagentTier)).`n" +
+            "Reasoning effort: $($cfg.effort). Match depth of analysis to this level.`n`n" +
+            "$($agent.Body)`n"
+        Write-Generated $home_ "config/agents/$name/agent.md" $md
     }
-    Remove-StaleFiles $home_ 'config/agents' '.md' $keep
+    Remove-StaleFiles $home_ 'config/agents' '.md' @()
+    Remove-StaleDirs $home_ 'config/agents' $keepDirs
+
+    $seedScript = @'
+param(
+    [string]$Mode = 'session',
+    [string]$ArtifactDir = ''
+)
+$ErrorActionPreference = 'SilentlyContinue'
+$geminiRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$agentsSrc = Join-Path $geminiRoot 'config\agents'
+
+function Copy-AgentsToBrain([string]$BrainDir) {
+    if (-not $BrainDir -or -not (Test-Path -LiteralPath $agentsSrc)) { return }
+    $destRoot = Join-Path $BrainDir '.agents\agents'
+    foreach ($roleDir in Get-ChildItem -LiteralPath $agentsSrc -Directory) {
+        $srcFile = Join-Path $roleDir.FullName 'agent.md'
+        if (Test-Path -LiteralPath $srcFile) {
+            $targetDir = Join-Path $destRoot $roleDir.Name
+            New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+            Copy-Item -LiteralPath $srcFile -Destination (Join-Path $targetDir 'agent.md') -Force
+        }
+    }
+}
+
+if ($ArtifactDir) {
+    Copy-AgentsToBrain $ArtifactDir
+    exit 0
+}
+
+$raw = if ([Console]::IsInputRedirected) { [Console]::In.ReadToEnd() } else { '' }
+if ($raw) {
+    $payload = $raw | ConvertFrom-Json
+    $artDir = $payload.artifactDirectoryPath
+    if (-not $artDir -and $payload.conversationId) {
+        $artDir = Join-Path (Join-Path $geminiRoot 'antigravity\brain') $payload.conversationId
+    }
+    if ($artDir) { Copy-AgentsToBrain $artDir }
+}
+
+$brainRoot = Join-Path $geminiRoot 'antigravity\brain'
+if (Test-Path -LiteralPath $brainRoot) {
+    Get-ChildItem -LiteralPath $brainRoot -Directory |
+        Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-7) } |
+        ForEach-Object { Copy-AgentsToBrain $_.FullName }
+}
+
+if ($Mode -eq 'pretool') {
+    [Console]::Out.Write('{"decision":"allow"}')
+} else {
+    [Console]::Out.Write('{}')
+}
+'@ -replace "`r`n", "`n"
+    Write-Generated $home_ 'config/hooks/seed-subagents.ps1' ($seedScript.TrimEnd() + "`n")
+
+    $hooksJson = @'
+{
+  "harness-subagents": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./hooks/seed-subagents.ps1 -Mode session",
+        "timeout": 10
+      }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./hooks/seed-subagents.ps1 -Mode session",
+        "timeout": 10
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "invoke_subagent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./hooks/seed-subagents.ps1 -Mode pretool",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+'@ -replace "`r`n", "`n"
+    Write-Generated $home_ 'config/hooks.json' ($hooksJson.TrimEnd() + "`n")
+
+    # Immediately seed active/recent brain conversations so open sessions have the 5 subagents without waiting
+    $brainRoot = Join-Path $home_ 'antigravity\brain'
+    if ((Test-Path -LiteralPath $brainRoot) -and $PSCmdlet.ShouldProcess($brainRoot, 'Seed canonical subagents into active brain conversations')) {
+        foreach ($convDir in (Get-ChildItem -LiteralPath $brainRoot -Directory | Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-7) })) {
+            foreach ($name in $keepDirs) {
+                $srcAgent = Join-Path $home_ "config\agents\$name\agent.md"
+                $dstDir = Join-Path $convDir.FullName ".agents\agents\$name"
+                New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+                Copy-Item -LiteralPath $srcAgent -Destination (Join-Path $dstDir 'agent.md') -Force
+            }
+        }
+    }
+
     Sync-HostSkills $home_ 'antigravity'
 }
 

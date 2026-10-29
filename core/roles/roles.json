@@ -2,11 +2,56 @@
   "schemaVersion": 1,
   "_note": "Role -> model/effort per host, plus host equivalence adapters for rules and skills. Claude values mirror agents/*.md (sync.ps1 fails on drift). Base skills in skills/** are never edited; sync.ps1 projects them into Codex and Antigravity with host equivalence preambles and path/invocation rewrites.",
   "roles": {
-    "scout":      { "claude": { "model": "haiku",  "effort": "low" },    "codex": { "model": "gpt-6-luna", "effort": "low" },    "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "low" } },
-    "implementer":{ "claude": { "model": "haiku",  "effort": "high" },   "codex": { "model": "gpt-6-luna", "effort": "high" },   "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "high" } },
-    "reviewer":   { "claude": { "model": "sonnet", "effort": "medium" }, "codex": { "model": "gpt-6.1-sol", "effort": "medium" }, "antigravity": { "model": "Claude Sonnet 5.5", "effort": "medium" } },
-    "verifier":   { "claude": { "model": "haiku",  "effort": "high" },   "codex": { "model": "gpt-6-luna", "effort": "high" },   "antigravity": { "model": "Gemini 3.8 Flash",  "effort": "high" } },
-    "architect_escalation": { "claude": { "model": "opus", "effort": "medium" }, "codex": { "model": "gpt-6.1-sol", "effort": "medium" }, "antigravity": { "model": "Claude Opus 5.5", "effort": "medium" } }
+    "scout": {
+      "claude": { "model": "haiku", "effort": "low" },
+      "codex": { "model": "gpt-6-luna", "effort": "low" },
+      "antigravity": {
+        "model": "Gemini 3.8 Flash",
+        "subagentTier": "flash",
+        "effort": "low",
+        "tools": ["send_message", "view_file", "read_url_content", "search_web", "schedule", "run_command", "manage_task"]
+      }
+    },
+    "implementer": {
+      "claude": { "model": "haiku", "effort": "high" },
+      "codex": { "model": "gpt-6-luna", "effort": "high" },
+      "antigravity": {
+        "model": "Gemini 3.8 Flash",
+        "subagentTier": "flash",
+        "effort": "high",
+        "tools": ["send_message", "view_file", "read_url_content", "search_web", "schedule", "write_file", "edit_file", "run_command", "manage_task", "notebook_edit"]
+      }
+    },
+    "reviewer": {
+      "claude": { "model": "sonnet", "effort": "medium" },
+      "codex": { "model": "gpt-6.1-sol", "effort": "medium" },
+      "antigravity": {
+        "model": "Claude Sonnet 5.5",
+        "subagentTier": "inherit",
+        "effort": "medium",
+        "tools": ["send_message", "view_file", "read_url_content", "search_web", "schedule", "run_command", "manage_task"]
+      }
+    },
+    "verifier": {
+      "claude": { "model": "haiku", "effort": "high" },
+      "codex": { "model": "gpt-6-luna", "effort": "high" },
+      "antigravity": {
+        "model": "Gemini 3.8 Flash",
+        "subagentTier": "flash",
+        "effort": "high",
+        "tools": ["send_message", "view_file", "read_url_content", "search_web", "schedule", "run_command", "manage_task"]
+      }
+    },
+    "architect_escalation": {
+      "claude": { "model": "opus", "effort": "medium" },
+      "codex": { "model": "gpt-6.1-sol", "effort": "medium" },
+      "antigravity": {
+        "model": "Claude Opus 5.5",
+        "subagentTier": "inherit",
+        "effort": "medium",
+        "tools": ["send_message", "view_file", "read_url_content", "search_web", "schedule"]
+      }
+    }
   },
   "rules": {
     "codex": {
@@ -31,7 +76,7 @@
       "preserveDirs": [],
       "executeScriptsRelPath": ".gemini/config/skills/execute-ig",
       "rewriteSlashToDollar": false,
-      "preamble": "> **Host adaptation (Antigravity):** This skill is projected from the canonical Claude Code source. Apply these host equivalences while preserving every workflow invariant, check, and approval gate:\n> - **Tools:** Claude `Read` -> `read_file`; `Edit` -> `edit_file`; `Write` -> `write_file`; `Grep` -> `grep_search`; `Glob` -> `find_by_name` / `list_dir`; `Bash` -> `run_command`; `AskUserQuestion` -> `ask_question`.\n> - **Subagents:** Claude `Agent` (`subagent_type: \"<role>\"`) -> `invoke_subagent(TypeName=\"<role>\", ...)` using the roles in `~/.gemini/config/agents/<role>.md` (`scout`, `implementer`, `reviewer`, `verifier`, `architect_escalation`). For `isolation: worktree`, pass `Workspace=\"share\"` (or `\"branch\"`) on `invoke_subagent`.\n> - **MCP (Azure DevOps):** `azure-devops:<tool>` -> `mcp_azure-devops_<tool>` (or `call_mcp_tool` on server `azure-devops`).\n> - **Project governance & permissions:** Repository `CLAUDE.md`, `CLAUDE.local.md`, and `.claude/settings.json` remain authoritative project sources and deny boundaries; read and obey them in Antigravity.\n> - **Shared state & metrics:** Keep `%USERPROFILE%\\.claude\\brixbroker\\` (`rodadas.csv`, `execute-rodadas.csv`) and `%TEMP%\\claude-handoffs\\Broker\\` unchanged so runs, handoffs, and audits interoperate across Claude, Codex, and Antigravity."
+      "preamble": "> **Host adaptation (Antigravity):** This skill is projected from the canonical Claude Code source. Apply these host equivalences while preserving every workflow invariant, check, and approval gate:\n> - **Tools:** Claude `Read` -> `read_file`; `Edit` -> `edit_file`; `Write` -> `write_file`; `Grep` -> `grep_search`; `Glob` -> `find_by_name` / `list_dir`; `Bash` -> `run_command`; `AskUserQuestion` -> `ask_question`.\n> - **Subagents:** Always use the canonical role names (`scout`, `implementer`, `reviewer`, `verifier`, `architect_escalation`) via `invoke_subagent(TypeName=\"<role>\", Model=\"<tier>\", ...)` — never fall back to `research` (which lacks `run_command` and cannot run `git diff`). If `<ArtifactDirectoryPath>/.agents/agents/<role>/agent.md` is not yet seeded in the current conversation, run `powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME/.gemini/config/hooks/seed-subagents.ps1\" -ArtifactDir \"<ArtifactDirectoryPath>\"` once before calling `invoke_subagent`.\n> - **Subagent `Model` tier & effort:** `invoke_subagent` only accepts `Model` in `[\"inherit\", \"flash_lite\", \"flash\", \"pro\"]` (never full model names or effort strings). Pass `Model=\"flash\"` for `scout`, `implementer`, and `verifier`; pass `Model=\"inherit\"` (or `\"pro\"`) for `reviewer` and `architect_escalation`. Reasoning effort (`low` / `medium` / `high`) is baked into each role's `agent.md` instructions and reinforced in your prompt brief. For `isolation: worktree`, pass `Workspace=\"share\"` (or `\"branch\"`).\n> - **MCP (Azure DevOps):** `azure-devops:<tool>` -> `mcp_azure-devops_<tool>` (or `call_mcp_tool` on server `azure-devops`).\n> - **Project governance & permissions:** Repository `CLAUDE.md`, `CLAUDE.local.md`, and `.claude/settings.json` remain authoritative project sources and deny boundaries; read and obey them in Antigravity.\n> - **Shared state & metrics:** Keep `%USERPROFILE%\\.claude\\brixbroker\\` (`rodadas.csv`, `execute-rodadas.csv`) and `%TEMP%\\claude-handoffs\\Broker\\` unchanged so runs, handoffs, and audits interoperate across Claude, Codex, and Antigravity."
     }
   }
 }

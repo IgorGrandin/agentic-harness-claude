@@ -4,23 +4,24 @@
 
 O que é gerado:
 - **Codex (`~/.codex/`):** `AGENTS.md`, `agents/*.toml` e `skills/<skill>/**` (incluindo `agents/openai.yaml` com `allow_implicit_invocation` derivado de `disable-model-invocation`). Preserva `~/.codex/skills/.system`.
-- **Antigravity (`~/.gemini/`):** `GEMINI.md`, `config/agents/*.md` e `config/skills/<skill>/**`.
+- **Antigravity (`~/.gemini/`):** `GEMINI.md`, `config/AGENTS.md`, `config/agents/<role>/agent.md`, `config/hooks/seed-subagents.ps1`, `config/hooks.json` e `config/skills/<skill>/**` (além de semear `.agents/agents/<role>/agent.md` nas conversas ativas em `antigravity/brain/*`).
 
 Aceita `-WhatIf`, `-Hosts codex|antigravity`, `-CodexHome`, `-GeminiHome` e `-PurgeLegacyHomes` (arquiva e remove `~/.agentic-harness`, `~/.agents`, `~/.codex/plans` e `~/.codex/memory-bank`). Faz backup de qualquer item substituído ou removido em `<home>/portable-backups/<timestamp>/`. Falha se `roles.json` divergir dos `agents/*.md` do Claude.
 
 ## Modelos e effort por papel
 
-| Papel | Claude Code | Codex | Antigravity |
+| Papel | Claude Code | Codex | Antigravity (alvo / tier `invoke_subagent`) |
 |---|---|---|---|
 | root | modelo da sessão | modelo da sessão | modelo da sessão |
-| scout | haiku low | gpt-6-luna low | Gemini 3.8 Flash low |
-| implementer | haiku high | gpt-6-luna high | Gemini 3.8 Flash high |
-| reviewer | sonnet medium | gpt-6.1-sol medium | Claude Sonnet 5.5 medium |
-| verifier | haiku high | gpt-6-luna high | Gemini 3.8 Flash high |
-| architect_escalation | opus medium | gpt-6.1-sol medium | Claude Opus 5.5 medium |
+| scout | haiku low | gpt-6-luna low | Gemini 3.8 Flash low (`Model="flash"`) |
+| implementer | haiku high | gpt-6-luna high | Gemini 3.8 Flash high (`Model="flash"`) |
+| reviewer | sonnet medium | gpt-6.1-sol medium | Claude Sonnet 5.5 medium (`Model="inherit"`) |
+| verifier | haiku high | gpt-6-luna high | Gemini 3.8 Flash high (`Model="flash"`) |
+| architect_escalation | opus medium | gpt-6.1-sol medium | Claude Opus 5.5 medium (`Model="inherit"`) |
 
-- Fable (Claude) e Astra (Codex) são proibidos no escalonamento; o Antigravity não tem equivalente.
-- Antigravity não tem campo de effort: ele vira uma linha de instrução no corpo do agente (best effort). Os nomes de modelo no frontmatter são os do seletor e **ainda não foram validados** como valor do campo `model`.
+- Fable (Claude) e Astra (Codex) são proibidos no escalonamento; no Antigravity o teto é Claude Opus 5.5.
+- No Antigravity (`invoke_subagent`), o parâmetro `Model` aceita apenas os tiers `["inherit", "flash_lite", "flash", "pro"]`: `scout`, `implementer` e `verifier` usam `"flash"` (Gemini 3.8 Flash), enquanto `reviewer` e `architect_escalation` usam `"inherit"` (ou `"pro"`). O effort (`low` / `medium` / `high`) vai injetado nas instruções de sistema de cada `<role>/agent.md`.
+- Os subagentes do Antigravity são resolvidos via `<ArtifactDirectoryPath>/.agents/agents/<role>/agent.md`, onde `scout`, `reviewer` e `verifier` recebem `run_command` (para rodar `git diff`, `git log`, `git show` e gates diretamente, sem precisar do fallback `research` nem de arquivos temporários em `scratch/*.diff`).
 
 ## Adaptação das skills por host (`skillAdapters` em `core/roles/roles.json`)
 
