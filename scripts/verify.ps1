@@ -35,6 +35,17 @@ foreach ($name in $manifest.skills) {
 }
 foreach ($name in $agentFiles) { if ($name -notin $manifest.agents) { Fail "Agent file not in manifest: $name" } }
 
+# Mods: the marketplace lists exactly the plugin folders the manifest installs.
+$modsRoot = Join-Path $root $manifest.mods.source
+$modsMarket = Read-Text (Join-Path $modsRoot '.claude-plugin/marketplace.json') | ConvertFrom-Json
+if ($modsMarket.name -ne $manifest.mods.marketplace) { Fail "Mods marketplace is '$($modsMarket.name)', manifest says '$($manifest.mods.marketplace)'" }
+$listedMods = @($modsMarket.plugins | ForEach-Object name)
+foreach ($name in @(Get-ChildItem (Join-Path $modsRoot 'plugins') -Directory | ForEach-Object Name)) { if ($name -notin $manifest.mods.items) { Fail "Mod folder not in manifest: $name" } }
+foreach ($name in $manifest.mods.items) {
+    if ($name -notin $listedMods) { Fail "Mod not listed in marketplace: $name" }
+    if (-not (Test-Path (Join-Path $modsRoot "plugins/$name/.claude-plugin/plugin.json"))) { Fail "Manifest mod without plugin.json: $name" }
+}
+
 # AC1 - no Codex mechanics in Markdown instructions. Historical prose that
 # merely names Codex is allowed; invocation syntax and Codex paths are not.
 $forbidden = @(

@@ -13,7 +13,8 @@ O plano de construção e as decisões estão em
 |---|---|---|
 | `CLAUDE.md` | `CLAUDE.md` | Regras globais: evidência, permissões, memória e política de delegação |
 | `agents/*.md` | `agents/` | Subagentes `scout`, `implementer`, `reviewer`, `verifier` e `architect_escalation` |
-| `skills/<nome>/` | `skills/<nome>/` | As 17 skills listadas em `manifest.json` |
+| `skills/<nome>/` | `skills/<nome>/` | As 21 skills listadas em `manifest.json` |
+| `benai-mods/` | `plugins/marketplaces/benai-mods/` e chaves em `settings.json` | Os 9 mods do Claude Code como marketplace `benai-mods`, habilitados globalmente |
 | `manifest.json` | — | Lista explícita do que o instalador gerencia |
 
 ## Modelos
@@ -56,9 +57,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
 ```
 
 O instalador gerencia só o que o `manifest.json` lista: o `CLAUDE.md`, os 5
-agentes e as 17 skills. Cada skill é substituída por inteiro, então arquivos
-deixados por um harness anterior não sobrevivem. Ele não toca `settings.json`,
-`projects/`, `sessions/`, `brixbroker/`, plugins nem skills fora da lista.
+agentes, as skills e o marketplace de mods. Cada skill é substituída por inteiro, então arquivos
+deixados por um harness anterior não sobrevivem. Do `settings.json` ele muda só as chaves `extraKnownMarketplaces.benai-mods` e `enabledPlugins` dos mods; o resto do arquivo fica como está. Ele não toca
+`projects/`, `sessions/`, `brixbroker/`, outros plugins nem skills fora da lista.
+
+Depois de instalar, reinicie o Claude Code e confira os mods com `/plugin`.
 
 Antes de substituir qualquer item, faz backup em
 `~/.claude/portable-backups/<timestamp>/`. Para reverter, copie o conteúdo

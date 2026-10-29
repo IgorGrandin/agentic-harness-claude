@@ -31,5 +31,20 @@
     "spec-task",
     "systematic-debugging",
     "takeover"
-  ]
+  ],
+  "mods": {
+    "source": "benai-mods",
+    "marketplace": "benai-mods",
+    "items": [
+      "brain-dump",
+      "cache-clock",
+      "chat-inventory",
+      "handoff",
+      "helper-desk",
+      "mods",
+      "reflect",
+      "replay-theater",
+      "screen-share"
+    ]
+  }
 }
