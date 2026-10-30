@@ -1,6 +1,6 @@
 ---
 name: plan-task
-description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, decide com o dev tudo que ficar abaixo de 95% de certeza, registra as decisões na WI e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Use quando o dev pedir "/plan-task <nº>".
+description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, decide com o dev tudo que ficar abaixo de 95% de certeza, registra as decisões na WI e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Quando a WI tem tela, conduz a especificação visual com a skill spec-frontend. Use quando o dev pedir "/plan-task <nº>".
 argument-hint: "nº do Work Item do Azure Boards (ex.: 2538)"
 disable-model-invocation: true
 ---
@@ -45,7 +45,7 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 | `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o dev** antes de planejar do zero |
 | comentários | vêm em **HTML**; é comum a mudança de escopo mais recente estar ali, não na descrição |
 
-**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao dev — não planeje por cima do buraco.
+**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Print de tela é referência visual; valor de design só vem do export versionado da §3b. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao dev — não planeje por cima do buraco.
 
 ---
 
@@ -74,6 +74,25 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 ---
 
+## 3b. Frontend — quando a WI tem tela
+
+**Detecte o sinal.** Há frontend quando aparece pelo menos um destes: anexo ou comentário com tela, componente ou mockup; descrição ou critério que fala em cor, tamanho, estilo ou layout; alguma área do §3 em `platform/frontend/**`. Sem sinal, pule esta seção. Com dúvida, pergunte ao dev uma vez.
+
+**Procure o mockup antes de perguntar.** Olhe os anexos e comentários já lidos no §1. Se achar um mockup, confirme com o dev que é o da task. Se não achar, pergunte se existe mockup do Claude Design.
+
+**Fonte é export versionado.** A fonte visual é um export do Claude Design que esteja no git: um import datado em `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/`, ou um `.html` único no caminho que a WI indica. Confirme com `git ls-files` que o arquivo está versionado; se não estiver, peça ao dev que commite antes de seguir. Se o artefato for do próprio dev, compare o arquivo local com o HTML publicado (`Artifact read`) e pergunte ao dev se divergem. Link de artefato é ponteiro: registre-o na WI, mas não é fonte. Print é referência visual. Sem export versionado, pare a parte visual e deixe o dev decidir entre esperar o export ou seguir sem visual, registrado como decisão do §4.
+
+**Confirme o recorte com o dev.** Quais telas e componentes do mockup entram nesta task. Proponha a partir das fatias de frontend previstas.
+
+**Aplique a skill spec-frontend** com o export versionado, o arquivo da task (§2) e o recorte. Ela devolve duas coisas:
+- a seção "Especificação visual" com a tabela de reconciliação, que entra no arquivo da task quando o dev aprovar, como no §6;
+- os itens sem token equivalente (classe C). Eles viram decisões do §4, uma por vez, cada uma com o ID `Dn` no registro.
+
+**Regras da parte visual:**
+- Token novo não nasce nesta task. Ele vira WI própria de design-system: mexer em lib compartilhada dentro de PR de feature gera WARN no `/execute-ig` (item 2 da lista de bloqueios recorrentes do owner).
+- Quem decide é o dev. Não há decisão visual com rótulo de owner.
+- As fatias de frontend ficam no mesmo plano do §5. Plano separado só com o corte aprovado pelo dev, como manda o §5.
+
 ## 4. A régua dos 95% — bloqueia e pergunta
 
 Qualquer ponto em que a certeza fique abaixo de **95%** trava a gravação do plano. Disciplina da skill `grilling`, igual ao `/spec-task` §0:
@@ -87,6 +106,7 @@ Gatilhos típicos de "<95%" nesta casa — se algum aparecer, é pergunta, não 
 - critério de aceite que não é observável (não dá para escrever o teste que o prova);
 - entidade, campo ou endpoint citado na WI que você **não achou** no código (pode ser a criar, pode ser outro nome — são planos diferentes);
 - anexo de UI sem estado de erro, vazio ou carregando definido;
+- item da classe C da reconciliação visual (§3b): valor de design sem token equivalente;
 - escopo que atravessa fronteira de módulo ou muda contrato público;
 - conflito entre descrição e comentários, ou entre WI e `backlog/tasks/`;
 - teste cujo caminho fixture → linha de produção você não consegue traçar (`plan-for-cursor` passe 4 — aí a saída é **delegar o fixture**, dizendo a propriedade e o discriminante, não inventar valores).

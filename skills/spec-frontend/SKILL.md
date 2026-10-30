@@ -1,6 +1,6 @@
 ---
 name: spec-frontend
-description: Transforma um mockup do Claude Design (import datado em platform/frontend/_imports/claude-design/) numa seção de spec de front-end pronta para anexar a uma task em backlog/tasks/ — extrai cores, tamanhos, espaçamentos, tipografia e comportamento, reconcilia cada valor com os tokens do design-system do projeto, normaliza equivalências exatas sozinha e leva as divergências ao dev para decidir — o que for design-system/ADR vai ao owner pela discussão da WI. Use quando o pedido mencionar mockup, Claude Design, spec visual ou de front-end, cores/tamanhos/estilos de uma task, ou reconciliar um design com o design-system.
+description: Transforma um mockup do Claude Design (export versionado no git: import datado em platform/frontend/_imports/claude-design/ ou um .html único) numa seção de spec de front-end pronta para anexar a uma task em backlog/tasks/ — extrai cores, tamanhos, espaçamentos, tipografia e comportamento, reconcilia cada valor com os tokens do design-system do projeto, normaliza equivalências exatas sozinha e leva as divergências ao dev para decidir — o que for design-system/ADR vai ao dev, que decide. Chamada pela skill plan-task quando a WI tem tela. Também serve quando o pedido mencionar mockup, Claude Design, spec visual ou de front-end, cores/tamanhos/estilos de uma task, ou reconciliar um design com o design-system.
 ---
 
 # /spec-frontend — mockup do Claude Design → seção de spec
@@ -15,13 +15,13 @@ Esta skill fecha esse buraco: o visual vira **texto versionado no repo**, com ca
 
 ## Entradas obrigatórias
 
-1. **Import datado:** `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/` (o export fica em `original/`)
-2. **Task alvo:** `backlog/tasks/<id>-<slug>.md`
+1. **Export versionado:** import datado `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/` (o export fica em `original/`), ou um `.html` único versionado no git, no caminho que a WI indica. Link e print não entram como fonte
+2. **Task alvo:** `backlog/tasks/<id>-<slug>.md` (o `/plan-task` materializa o arquivo no §2 dele)
 3. **Recorte:** quais telas/componentes do mockup interessam a esta task
 
 **Faltando qualquer um dos três, pergunte antes de ler qualquer arquivo.** O recorte é o que mais escapa e é o mais caro: sem ele você lê o mockup inteiro. No único import existente hoje, isso é `styles.css` com 1176 linhas mais ~3.400 linhas de `.jsx` — mais caro que a task que você está especificando.
 
-Se o import ainda não existe no repo, **pare e peça ao dev que exporte**. Você não escreve em `platform/**` (ver Guardrails).
+Se o export não existe no repo ou não está versionado (`git ls-files`), **pare e peça ao dev que exporte e commite**. Você não escreve em `platform/**` (ver Guardrails).
 
 ## Procedimento
 
@@ -72,14 +72,14 @@ Se o export vier como HTML único (`.dc.html` ou `index.html`), os mesmos greps 
 
 **Cada item do balde C vai ao dev com três saídas nomeadas:**
 1. aproximar do token mais próximo — com o delta explícito;
-2. criar token novo — vira decisão de design-system, possivelmente ADR: é do **owner**, e vai como pergunta na discussão da WI;
+2. criar token novo — vira WI própria de design-system, fora desta task; se exigir ADR, o caso vai ao dev, que decide;
 3. aceitar o literal — com a justificativa registrada na tabela.
 
-Agrupe itens C do mesmo tipo numa pergunta só (todos os espaçamentos juntos, todas as cores juntas). Uma pergunta por valor cansa e é onde o erro por fadiga entra.
+Mostre os itens C do mesmo tipo juntos, numa tabela, para o dev ver o conjunto (todos os espaçamentos, todas as cores). Decida um por vez, cada decisão com recomendação, como manda o registro de decisões do `/plan-task`. Cada uma ganha um ID `Dn`.
 
 ### 5. Emitir a seção no formato da casa
 
-As tasks do repo têm anatomia fixa de 7 seções: `## Objetivo`, `## Contexto`, `## Escopo`, `## Critérios de aceite`, `## Área de impacto esperada`, `## Coordenação com outras tasks`, `## Referências de arquitetura`.
+A anatomia da task segue o `/plan-task` §2 e o `/spec-task` §4: 6 seções, `## Objetivo`, `## Contexto`, `## Escopo`, `## Critérios de aceite`, `## Área de impacto esperada`, `## Referências de arquitetura`, mais a seção `## Decisões do dev` no Work Item.
 
 **A saída encaixa nelas.** Nunca crie um H1, nunca um bloco paralelo às 7.
 
@@ -88,7 +88,7 @@ As tasks do repo têm anatomia fixa de 7 seções: `## Objetivo`, `## Contexto`,
 ```markdown
 ### Especificação visual
 
-Origem: `_imports/claude-design/<slug>/<data>/`. Valores não especificados aqui
+Origem: `<caminho do export versionado>`. Valores não especificados aqui
 seguem o token equivalente do design-system — não hardcodar.
 
 - **<elemento>**: altura `<v>`, padding `<v>`, raio `var(--shape-md)`,
@@ -111,18 +111,20 @@ seguem o token equivalente do design-system — não hardcodar.
 | gap do grupo | `10px` | sem escala de espaçamento | **dev (<seu nome>, <data>):** literal aceito |
 ```
 
-**d) Para `## Referências de arquitetura`** — link relativo para a pasta datada do import.
+**d) Para `## Referências de arquitetura`** — link relativo para o export versionado (pasta datada ou `.html`).
 
 ### 6. Escrever na task
 
 Só **depois** que o dev aprovar a tabela do passo 4. Escreva direto no arquivo em `backlog/tasks/` — inserindo cada bloco na seção que lhe corresponde, preservando o que já existe.
 
-Se a task já tiver uma linha citando o mockup só como referência externa (o caso da 3227), **substitua-a** pelo link do import datado — senão a spec fica com duas fontes visuais, uma delas inacessível ao Cursor.
+Se a task já tiver uma linha citando o mockup só como referência externa (o caso da 3227), **substitua-a** pelo caminho do export versionado — senão a spec fica com duas fontes visuais, uma delas inacessível ao Cursor.
+
+Quando a chamada vem do `/plan-task`, esta skill não grava no Work Item. As decisões dos itens C voltam ao `/plan-task`, que as registra em lote na seção "Decisões do dev", como manda o registro de decisões.
 
 ## Guardrails
 
 - **Nunca edite `platform/**`, `services/**` ou `infra/**`** — nem por shell (`sed`, `Set-Content`, redirecionamento). CLAUDE.md §2, sem exceção para "só um valor" ou "fix trivial". Achado nesses caminhos vira lista de correções para o Cursor.
-- **Token do projeto vence o mockup** quando há equivalente (ADR-0011:61). O mockup vence só onde o projeto não tem resposta — e aí a decisão é do dev (layout é dele), não sua. Registre como **`dev (<seu nome>, <data>)`**; **`owner`** só com link para um comentário escrito pelo owner na WI ou na PR.
+- **Token do projeto vence o mockup** quando há equivalente (ADR-0011:61). O mockup vence só onde o projeto não tem resposta — e aí a decisão é do dev (layout é dele), não sua. Registre como decisão **Dn** no registro do `/plan-task`: o dev decide, e esta skill não usa rótulo de owner.
 - **"O quê", não "como".** ADR-0039:14: a spec diz o quê e por quê; o como é do dev. Valor observável (`altura 56px`, `raio --shape-full`) entra. Técnica (qual mixin, qual seletor, qual classe criar) fica fora.
 - **Rule `036`:** features não importam `@angular/material`; a API pública é `broker-*`. A seção nunca prescreve Material dentro de feature.
 - **Toda afirmação de valor cita `arquivo:linha`** da fonte — mockup ou `_tokens.scss`. Valor sem procedência não entra na spec.
@@ -136,7 +138,7 @@ O custo desta skill é dominado por leitura de mockup, não por raciocínio.
 - `_tokens.scss` é lido uma vez, íntegro (110 ln é mais barato que três greps).
 - `_palettes.scss` só quando um hex cru do core M3 precisa ser resolvido.
 - **Sonnet basta**: o trabalho é grep e comparação de strings. Opus só se o recorte for redesenho estrutural, onde o julgamento é o produto.
-- Uma task por sessão. Terminada a seção, `/clear` antes da próxima.
+- Uma task por sessão. Terminada a seção, `/clear` antes da próxima, salvo quando a chamada veio do `/plan-task`, que segue na mesma sessão.
 
 ## Estado conhecido do design-system (confira antes de confiar)
 
