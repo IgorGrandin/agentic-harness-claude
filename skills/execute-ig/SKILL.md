@@ -34,6 +34,15 @@ Invariants. They override anything in `execute.md` or in the rules that reads di
 6. **This session never audits itself:** `/revise post-gate` runs in a new session (step 10).
 7. **Not sure which step you are in?** Stop at the current step and say so. Never run a gate-like command to find out.
 
+## Resumed session: fast path
+
+A resumed session is any session of the run after the first slice commit: `git log --grep='^Execute-Plan: <plan path>$'` finds commits of this plan. The dev always opens it with `/execute-ig <WI>`; the first session is the one with no such commit. The point is to reach the slice's implementation with as little time and context as possible, so the final review and gate come sooner. In a resumed session:
+- **Do** step 0 (record state, clean tree), step 1 (`resolve-plan.ps1` and the Work Item's "Decisões do dev"), and step 4 for the pending slice, starting from `show-slice.ps1` (see Load by step).
+- **Skip preflight and the coverage challenge** unless `git diff <last slice commit> -- <plan>` is not empty; then run them only over that delta (step 2).
+- **Do not run before the first edit:** `check-owner-blockers.ps1` (step 5 and the step 7 trap only), probes of local ports or dev servers, a build or test of the whole project, or any reading of `execute-review`, rules `060`/`110` and `execute.md` §4 (they belong to steps 5 to 7).
+- **Do not list steps 5 to 10 in the task list** unless this session commits the last pending slice. Then add them after that commit, not before.
+- The base-freshness question (step 0) stays only when `origin/master` moved in files shared with the branch or the plan.
+
 ## Load by step
 
 Open only what the current step needs. A resumed session (one slice) never reopens the contract of the steps already done.
