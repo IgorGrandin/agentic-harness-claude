@@ -124,6 +124,15 @@ try {
         # Elected discriminant.
         if ($trailers.ContainsKey('Execute-Slice')) {
             $id = ($trailers['Execute-Slice'] -replace '(?i)^\s*fatia\s+', '' -replace '(?i)^S(?=\d)', '').Trim()
+            # Real trailers carry the frontmatter todo id (e.g. f6-modulo-smoke) while the heading is "### F6 - ...":
+            # also try the todo's own "B1:" label and the id's first segment.
+            $candidates = @($id)
+            $idx = -1
+            for ($k = 0; $k -lt $plan.Count; $k++) { if ($plan[$k] -match ('^\s*-\s*id:\s*"?' + [regex]::Escape($id) + '"?\s*$')) { $idx = $k; break } }
+            if ($idx -ge 0) {
+                if ($idx + 1 -lt $plan.Count -and $plan[$idx + 1] -match '^\s*content:\s*"?\s*([^:"]{1,20}):') { $candidates += $Matches[1].Trim() }
+                if ($id -match '^([A-Za-z]+\d+)-') { $candidates += $Matches[1] }
+            }
             $start = -1; $end = $plan.Count; $level = 0; $inFence = $false
             for ($i = 0; $i -lt $plan.Count; $i++) {
                 if ($plan[$i] -match '^\s*(```|~~~)') { $inFence = -not $inFence; continue }
@@ -131,7 +140,9 @@ try {
                 if ($start -lt 0) {
                     if ($plan[$i] -match '^(#{2,4})\s+(.*)$') {
                         $title = $Matches[2]; $lvl = $Matches[1].Length
-                        if ($title -match "(?i)^\s*(?:fatia\s+)?$([regex]::Escape($id))(?![\w.])" -or $title -match "(?i)\bfatia\s+$([regex]::Escape($id))(?![\w.])") { $start = $i; $level = $lvl }
+                        foreach ($cand in $candidates) {
+                            if ($title -match "(?i)^\s*(?:fatia\s+)?$([regex]::Escape($cand))(?![\w.])" -or $title -match "(?i)\bfatia\s+$([regex]::Escape($cand))(?![\w.])") { $start = $i; $level = $lvl; break }
+                        }
                     }
                 } elseif ($plan[$i] -match '^(#{1,6})\s') {
                     if ($Matches[1].Length -le $level) { $end = $i; break }

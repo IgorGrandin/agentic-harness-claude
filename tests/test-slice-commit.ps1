@@ -33,6 +33,12 @@ try {
     $r=Run-Msg 'claims-none-with-visto.msg'
     Require ($r.Exit -eq 0) "'Afirmacoes: nenhuma' with the [visto] did not pass: exit $($r.Exit) $(Show $r)"
 
+    # Real trailers carry the frontmatter todo id; the heading is "### F6 - ..." (BrixBroker plans).
+    $r=Run-Msg 'todo-id-visto.msg' 'todo-id.plan.md'
+    Require ($r.Exit -eq 0) "Slice named by todo id did not resolve to its heading: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg 'todo-id-no-visto.msg' 'todo-id.plan.md'
+    Require ($r.Exit -eq 1 -and (Has $r.Result 3 'BLOCK' '*ModuloTests.CasoZ*')) "Discriminant of a slice named by todo id was not enforced: exit $($r.Exit) $(Show $r)"
+
     # Violations, one per condition.
     $r=Run-Msg 'no-plan-trailer.msg'
     Require ($r.Exit -eq 1 -and (Has $r.Result 1 'BLOCK' '*Execute-Plan*')) "Missing Execute-Plan not blocked: exit $($r.Exit) $(Show $r)"
