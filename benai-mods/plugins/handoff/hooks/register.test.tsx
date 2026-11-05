@@ -127,9 +127,8 @@ for (const surface of ['desktop', 'terminal'] as const) {
   })
 }
 
-for (const surface of ['desktop', 'terminal'] as const) {
-  test(`closing a finished handoff snoozes the offer under the 200k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
-    const tokens = 150_000
+for (const [surface, tokens] of [['desktop', 150_000], ['terminal', 150_000], ['desktop', 175_000]] as const) {
+  test(`closing a finished handoff at ${tokens} snoozes the offer under the 200k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
     const files: Record<string, string> = {}
     const store: Record<string, unknown> = {}
     on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
@@ -166,7 +165,7 @@ for (const surface of ['desktop', 'terminal'] as const) {
     await $.turn.complete({ answer: '' } as never)
     await clock.settle()
     let v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'offer at 150,000').toBeDefined()
+    expect(await v.find({ key: 'refresh' }), `offer at ${tokens}`).toBeDefined()
 
     await v.press({ key: 'refresh' })
     await clock.advance(10_000)
@@ -175,8 +174,8 @@ for (const surface of ['desktop', 'terminal'] as const) {
 
     await v.press({ key: 'close' })
     const snoozedTo = store['snooze:sid'] as number
-    expect(snoozedTo, 'closing stores a snooze').toBeGreaterThan(150_000)
-    expect(snoozedTo, 'offer plus snooze stays under the 200k window').toBeLessThan(200_000)
+    expect(snoozedTo, 'closing stores a snooze').toBeGreaterThan(tokens - 1)
+    expect(snoozedTo, 'offer plus snooze stays under the 200k window').toBeLessThanOrEqual(190_000)
   })
 }
 

@@ -53,6 +53,15 @@ try {
     $r = Invoke-Hook (Payload 'auto' $id) $h1
     Require (($r.Out | ConvertFrom-Json).decision -eq 'block') 'auto/third: should block again'
 
+    # Orphan sentinel (older than 15 min) blocks again; a sentinel of another session older than a day is removed.
+    $sent = Join-Path $h1 "handoffs/.precompact-blocked-$id"
+    $other = Join-Path $h1 'handoffs/.precompact-blocked-00000000-dead-beef'
+    Set-Content -LiteralPath $sent -Value 'x'; (Get-Item -LiteralPath $sent -Force).LastWriteTimeUtc = [DateTime]::UtcNow.AddMinutes(-30)
+    Set-Content -LiteralPath $other -Value 'x'; (Get-Item -LiteralPath $other -Force).LastWriteTimeUtc = [DateTime]::UtcNow.AddDays(-2)
+    $r = Invoke-Hook (Payload 'auto' $id) $h1
+    Require (($r.Out | ConvertFrom-Json).decision -eq 'block') 'auto/orphan sentinel: should block again'
+    Require (-not (Test-Path -LiteralPath $other)) 'auto/old sentinel of another session was not cleaned'
+
     # Cases that must write nothing, print nothing, exit 0.
     $cases = [ordered]@{
         'manual'        = Payload 'manual' $id

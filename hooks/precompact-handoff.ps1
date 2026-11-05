@@ -28,6 +28,17 @@ try {
     $logFile = Join-Path $dir 'handoff.log'
     $short = $id.Substring(0, 8)
 
+    # Housekeeping: sentinels of long-gone sessions (older than a day) are removed.
+    Get-ChildItem -LiteralPath $dir -Force -Filter '.precompact-blocked-*' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-1) } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
+
+    # A sentinel older than 15 minutes is an orphan (the blocked compaction never came back):
+    # it no longer counts as "in a row", so this attempt blocks and asks for a Refresh again.
+    if ((Test-Path -LiteralPath $sentinel) -and ((Get-Item -LiteralPath $sentinel -Force).LastWriteTimeUtc -lt [DateTime]::UtcNow.AddMinutes(-15))) {
+        Remove-Item -LiteralPath $sentinel -Force
+    }
+
     if (Test-Path -LiteralPath $sentinel) {
         Remove-Item -LiteralPath $sentinel -Force
         [IO.File]::AppendAllText($logFile, "$now $short precompact: second auto-compact in a row, letting it run`n", $utf8)

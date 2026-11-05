@@ -10,6 +10,8 @@ const PANEL = { plugin: 'handoff', key: 'panel' } as const
 // The offer opens at 150k, and offer plus SNOOZE (190k) stays under the 200k window.
 const OFFER_AT = 150_000
 const SNOOZE = 40_000
+// A snooze never moves the offer past this size, so it stays under the 200k window even if the handoff is closed late.
+const SNOOZE_CAP = 190_000
 const POLL_MS = 5000
 const TICK_MS = 110
 // A quick step still shows its bar filling for this long, so the rows read one by one.
@@ -549,7 +551,7 @@ async function close($: EngineInterface) {
     }
   } else if (p) {
     // Closing a finished handoff counts as an answer up to here, too.
-    snoozedTo = Math.max(snoozedTo, p.tokens + SNOOZE)
+    snoozedTo = Math.max(snoozedTo, Math.min(p.tokens + SNOOZE, SNOOZE_CAP))
     if (sid) await $.store.set(`snooze:${sid}`, snoozedTo)
   }
   await setPanel($, null)
