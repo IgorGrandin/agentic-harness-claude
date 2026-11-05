@@ -54,6 +54,67 @@ try {
     Require (Test-Path (Join-Path $b 'skills/plan-task/agents/openai.yaml')) 'Backup lacks the previous skill directory'
     Require ((Get-Content -Raw (Join-Path $b 'settings.json')) -notmatch 'benai-mods') 'Backup holds settings changed by the install'
     Require ((Get-Content -Raw (Join-Path $b 'settings.json')) -match 'sentinel') 'Backup lacks the previous settings.json'
+
+    # AC2/AC3 - compaction window and PreCompact hook, on a settings.json in the real format.
+    $home2=Join-Path $temp 'compact/.claude'
+    New-Item -ItemType Directory -Force $home2 | Out-Null
+    $real=@'
+{
+  "hooks": {
+    "Stop": [ { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:/x/.claude/scripts/log-tokens.ps1\"" } ] } ],
+    "PreCompact": [ { "matcher": "manual", "hooks": [ { "type": "command", "command": "echo manual-only" } ] } ]
+  },
+  "enableWorkflows": true,
+  "modelSettings": {
+    "claude-sonnet-5-5": { "autoCompactWindow": 400000, "other": "keep-me" },
+    "claude-haiku-5-5": { "autoCompactWindow": 123456 }
+  }
+}
+'@
+    Set-Content -LiteralPath (Join-Path $home2 'settings.json') -Value $real -Encoding UTF8
+    & $installer -ClaudeHome $home2 | Out-Null
+    & $installer -ClaudeHome $home2 | Out-Null
+    $s2=Get-Content -Raw -Encoding UTF8 (Join-Path $home2 'settings.json') | ConvertFrom-Json
+    Require ($s2.autoCompactWindow -eq 200000) 'autoCompactWindow not 200000 at the top level'
+    $sonnet=$s2.modelSettings.'claude-sonnet-5-5'
+    Require ($sonnet.other -eq 'keep-me') 'Sonnet model lost its other key'
+    Require (-not $sonnet.PSObject.Properties['autoCompactWindow']) 'Sonnet window override not removed'
+    Require ($s2.modelSettings.'claude-haiku-5-5'.autoCompactWindow -eq 123456) 'Other model window was touched'
+    Require ($s2.enableWorkflows -eq $true) 'Unrelated key lost'
+    Require (@($s2.hooks.Stop).Count -eq 1 -and $s2.hooks.Stop[0].hooks[0].command -match 'log-tokens\.ps1') 'Stop hook not preserved'
+    $pre=@($s2.hooks.PreCompact)
+    Require ($pre.Count -eq 2) "Expected 2 PreCompact entries after two runs, got $($pre.Count)"
+    $manual=@($pre | Where-Object { $_.matcher -eq 'manual' })
+    Require ($manual.Count -eq 1 -and $manual[0].hooks[0].command -eq 'echo manual-only') 'Manual PreCompact entry not preserved'
+    $ours=@($pre | Where-Object { $_.hooks | Where-Object { $_.command -like '*precompact-handoff.ps1*' } })
+    Require ($ours.Count -eq 1) 'Expected exactly one PreCompact entry for precompact-handoff.ps1'
+    Require ($ours[0].matcher -eq 'auto') 'PreCompact entry matcher is not auto'
+    Require (@($ours[0].hooks).Count -eq 1 -and $ours[0].hooks[0].type -eq 'command') 'PreCompact entry lacks the command hook'
+    Require ($ours[0].hooks[0].command -like "*$((Join-Path $home2 'hooks\precompact-handoff.ps1') -replace '\\','/')*") 'PreCompact command does not point at the installed hook'
+    Require ((Hash (Join-Path $home2 'hooks/precompact-handoff.ps1')) -eq (Hash (Join-Path $root 'hooks/precompact-handoff.ps1'))) 'Hook not installed from the repository'
+
+    # A model object holding only the window disappears; an empty modelSettings disappears too.
+    $home3=Join-Path $temp 'prune/.claude'
+    New-Item -ItemType Directory -Force $home3 | Out-Null
+    Set-Content -LiteralPath (Join-Path $home3 'settings.json') -Value '{"modelSettings":{"claude-sonnet-5-5":{"autoCompactWindow":400000}},"keep":1}' -Encoding UTF8
+    & $installer -ClaudeHome $home3 | Out-Null
+    $s3=Get-Content -Raw -Encoding UTF8 (Join-Path $home3 'settings.json') | ConvertFrom-Json
+    Require (-not $s3.PSObject.Properties['modelSettings']) 'Empty modelSettings was not removed'
+    Require ($s3.keep -eq 1 -and $s3.autoCompactWindow -eq 200000) 'Prune case lost keys or missed the window'
+    # With another model left, only the Sonnet object goes.
+    $home4=Join-Path $temp 'prune2/.claude'
+    New-Item -ItemType Directory -Force $home4 | Out-Null
+    Set-Content -LiteralPath (Join-Path $home4 'settings.json') -Value '{"modelSettings":{"claude-sonnet-5-5":{"autoCompactWindow":400000},"x":{"a":1}}}' -Encoding UTF8
+    & $installer -ClaudeHome $home4 | Out-Null
+    $s4=Get-Content -Raw -Encoding UTF8 (Join-Path $home4 'settings.json') | ConvertFrom-Json
+    Require (-not $s4.modelSettings.PSObject.Properties['claude-sonnet-5-5'] -and $s4.modelSettings.x.a -eq 1) 'Sonnet object not pruned alone'
+
+    # Fresh home with no settings.json at all.
+    $home5=Join-Path $temp 'fresh/.claude'
+    & $installer -ClaudeHome $home5 | Out-Null
+    $s5=Get-Content -Raw -Encoding UTF8 (Join-Path $home5 'settings.json') | ConvertFrom-Json
+    Require (@($s5.hooks.PreCompact).Count -eq 1 -and $s5.autoCompactWindow -eq 200000) 'Fresh install missed the hook or the window'
+
     Write-Host 'install tests passed'
 } finally {
     if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }

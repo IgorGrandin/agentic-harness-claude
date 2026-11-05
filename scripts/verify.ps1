@@ -46,6 +46,13 @@ foreach ($name in $manifest.mods.items) {
     if (-not (Test-Path (Join-Path $modsRoot "plugins/$name/.claude-plugin/plugin.json"))) { Fail "Manifest mod without plugin.json: $name" }
 }
 
+# Hooks: the manifest lists exactly the scripts in hooks/.
+$manifestHooks = if ($manifest.PSObject.Properties['hooks']) { @($manifest.hooks) } else { @() }
+$hooksDir = Join-Path $root 'hooks'
+$hookFiles = if (Test-Path $hooksDir) { @(Get-ChildItem $hooksDir -Filter '*.ps1' -File | ForEach-Object BaseName) } else { @() }
+foreach ($name in $hookFiles) { if ($name -notin $manifestHooks) { Fail "Hook script not in manifest: $name" } }
+foreach ($name in $manifestHooks) { if ($name -notin $hookFiles) { Fail "Manifest hook without hooks/$name.ps1" } }
+
 # AC1 - no Codex mechanics in Markdown instructions. Historical prose that
 # merely names Codex is allowed; invocation syntax and Codex paths are not.
 $forbidden = @(

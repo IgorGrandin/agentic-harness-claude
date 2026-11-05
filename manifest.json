@@ -9,6 +9,9 @@
     "verifier",
     "architect_escalation"
   ],
+  "hooks": [
+    "precompact-handoff"
+  ],
   "skills": [
     "audit-task",
     "brainstorming",

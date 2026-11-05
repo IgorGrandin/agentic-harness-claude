@@ -3,7 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 const HANDOFF = '# Handoff: Build the refresh mod\n\nContinue work in `~/vault`. Goal: finish it.\n\n## Next steps\n1. Test it.'
 
 for (const surface of ['desktop', 'terminal'] as const) {
-  test(`offer at 250k, steps, then copy and start (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
+  test(`offer at 150k, steps, then copy and start (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
     let tokens = 120_000
     const files: Record<string, string> = {}
     const store: Record<string, unknown> = {}
@@ -73,14 +73,20 @@ for (const surface of ['desktop', 'terminal'] as const) {
     await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface, isInteractive: true } as never)
 
     let v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'no offer below 250k').toBeUndefined()
+    expect(await v.find({ key: 'refresh' }), 'no offer at 120k').toBeUndefined()
 
-    tokens = 262_000
+    tokens = 149_999
     await $.turn.complete({ answer: '' } as never)
     // checkOffer runs after the turn's answer, unawaited.
     await clock.settle()
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'offer at 262k').toBeDefined()
+    expect(await v.find({ key: 'refresh' }), 'no offer at 149,999').toBeUndefined()
+
+    tokens = 150_000
+    await $.turn.complete({ answer: '' } as never)
+    await clock.settle()
+    v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
+    expect(await v.find({ key: 'refresh' }), 'offer at 150,000').toBeDefined()
 
     await v.press({ key: 'refresh' })
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
@@ -118,6 +124,59 @@ for (const surface of ['desktop', 'terminal'] as const) {
     await v.press({ key: 'close' })
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
     expect(await v.find({ key: 'copy' }), 'closed').toBeUndefined()
+  })
+}
+
+for (const surface of ['desktop', 'terminal'] as const) {
+  test(`closing a finished handoff snoozes the offer under the 200k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
+    const tokens = 150_000
+    const files: Record<string, string> = {}
+    const store: Record<string, unknown> = {}
+    on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
+    on('command.register', async () => ({ value: undefined }) as never)
+    on('tool.register', async () => ({ value: { tool: 'mcp__handoff__refresh' } }) as never)
+    const clock = mock.clock(on, { now: 1_000_000 })
+    on('session.id', async () => ({ value: 'sid' }) as never)
+    on('session.cwd', async () => ({ value: '/Users/test/vault' }) as never)
+    on('session.usage', async () => ({ value: { context: { tokens, window: 200_000 } } }) as never)
+    on('session.messages', async () => ({ value: [{ role: 'user', text: 'Build a refresh mod', toolUses: [] }] }) as never)
+    on('model.fork', async () => ({ value: { isAnswered: true, text: HANDOFF, usage: {} } }) as never)
+    on('fs.exists', async ($, e) => ({ value: (e as { path: string }).path in files }) as never)
+    on('fs.write', async ($, e) => {
+      const { path, text } = e as { path: string; text: string }
+      files[path] = text
+      return { value: undefined } as never
+    })
+    on('fs.read', async ($, e) => ({ value: files[(e as { path: string }).path] ?? '' }) as never)
+    on('process.run', async () => ({ value: { exitCode: 0, stdout: '', stderr: '' } }) as never)
+    on('store.get', async ($, e) => ({ value: store[(e as { key: string }).key] }) as never)
+    on('store.set', async ($, e) => {
+      const { key, value } = e as { key: string; value: unknown }
+      store[key] = value
+      return { value: undefined } as never
+    })
+    on('turn.complete', async () => ({ text: '' }) as never)
+    on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
+      const { Text } = $.ui.resolve(e)
+      return <Text>REST</Text>
+    })
+
+    const props = { isWorking: false, hasSurvey: false } as never
+    await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface, isInteractive: true } as never)
+    await $.turn.complete({ answer: '' } as never)
+    await clock.settle()
+    let v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
+    expect(await v.find({ key: 'refresh' }), 'offer at 150,000').toBeDefined()
+
+    await v.press({ key: 'refresh' })
+    await clock.advance(10_000)
+    v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
+    expect(await v.find({ key: 'copy' }), 'ready: copy button').toBeDefined()
+
+    await v.press({ key: 'close' })
+    const snoozedTo = store['snooze:sid'] as number
+    expect(snoozedTo, 'closing stores a snooze').toBeGreaterThan(150_000)
+    expect(snoozedTo, 'offer plus snooze stays under the 200k window').toBeLessThan(200_000)
   })
 }
 
@@ -308,7 +367,7 @@ for (const surface of ['desktop', 'terminal'] as const) {
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props: offerProps })
     expect(await v.find({ key: 'refresh' }), 'Show opens it at 40k').toBeDefined()
     expect(files[OPEN], 'the request file is used up').toBeUndefined()
-    // It stays through the 5 s check, though the count is under 250k.
+    // It stays through the 5 s check, though the count is under 150k.
     await clock.advance(10_000)
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props: offerProps })
     expect(await v.find({ key: 'refresh' }), 'a shown offer stays').toBeDefined()

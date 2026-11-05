@@ -17,6 +17,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $manifest = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'manifest.json') | ConvertFrom-Json
 if ($manifest.schemaVersion -ne 1) { throw "Unsupported manifest schema: $($manifest.schemaVersion)" }
 
+$HookNames = if ($manifest.PSObject.Properties['hooks']) { @($manifest.hooks) } else { @() }
 $home_ = [IO.Path]::GetFullPath($ClaudeHome).TrimEnd('\', '/')
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $backupRoot = Join-Path $home_ (Join-Path 'portable-backups' $stamp)
@@ -72,7 +73,49 @@ function Set-Property($Object, [string]$Name, $Value) {
     else { $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value }
 }
 
+$AutoCompactWindow = 200000
+$PreCompactScript = 'precompact-handoff.ps1'
+
+# Sets the top-level auto-compact window and drops the per-model override of the
+# Sonnet window (empty model object, then empty modelSettings, are removed too).
+function Set-CompactWindow($Settings) {
+    Set-Property $Settings 'autoCompactWindow' $AutoCompactWindow
+    $models = $Settings.PSObject.Properties['modelSettings']
+    if (-not $models -or $null -eq $models.Value) { return }
+    $sonnet = $models.Value.PSObject.Properties['claude-sonnet-5-5']
+    if ($sonnet -and $null -ne $sonnet.Value) {
+        if ($sonnet.Value.PSObject.Properties['autoCompactWindow']) { $sonnet.Value.PSObject.Properties.Remove('autoCompactWindow') }
+        if (@($sonnet.Value.PSObject.Properties).Count -eq 0) { $models.Value.PSObject.Properties.Remove('claude-sonnet-5-5') }
+    }
+    if (@($models.Value.PSObject.Properties).Count -eq 0) { $Settings.PSObject.Properties.Remove('modelSettings') }
+}
+
+# Registers each manifest hook script as PreCompact/auto. An entry is recognised by the
+# script name inside its command, so a second run rewrites that command instead of adding
+# another one. Other hook events and other PreCompact matchers are left alone.
+function Set-PreCompactHook($Settings, [string]$ScriptPath) {
+    if (-not $Settings.PSObject.Properties['hooks'] -or $null -eq $Settings.hooks) { Set-Property $Settings 'hooks' ([pscustomobject]@{}) }
+    $command = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$($ScriptPath -replace '\\', '/')`""
+    $entries = @(if ($Settings.hooks.PSObject.Properties['PreCompact']) { $Settings.hooks.PreCompact })
+    $found = $false
+    foreach ($entry in $entries) {
+        if ($null -eq $entry -or -not $entry.PSObject.Properties['hooks']) { continue }
+        foreach ($h in @($entry.hooks)) {
+            if ($h -and $h.PSObject.Properties['command'] -and ([string]$h.command).Contains($PreCompactScript)) {
+                $h.command = $command
+                $found = $true
+            }
+        }
+    }
+    if (-not $found) {
+        $entries += [pscustomobject]@{ matcher = 'auto'; hooks = @([pscustomobject]@{ type = 'command'; command = $command }) }
+    }
+    Set-Property $Settings.hooks 'PreCompact' $entries
+}
+
 # Registers the marketplace folder in settings.json and enables each mod in it.
+# Also applies the compaction settings (window and PreCompact hook) in the same write,
+# so one backup of the previous settings.json covers everything.
 # Every other key in settings.json is kept as it was.
 function Merge-ModsSettings([string]$Marketplace, [string]$MarketplacePath, [string[]]$Plugins) {
     $target = Assert-Inside (Join-Path $home_ 'settings.json')
@@ -84,6 +127,8 @@ function Merge-ModsSettings([string]$Marketplace, [string]$MarketplacePath, [str
         $marketSource = [pscustomobject]@{ source = [pscustomobject]@{ source = 'directory'; path = $MarketplacePath } }
         Set-Property $settings.extraKnownMarketplaces $Marketplace $marketSource
         foreach ($plugin in $Plugins) { Set-Property $settings.enabledPlugins "$plugin@$Marketplace" $true }
+        Set-CompactWindow $settings
+        foreach ($hook in $HookNames) { Set-PreCompactHook $settings (Assert-Inside (Join-Path $home_ "hooks\$hook.ps1")) }
         New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
         [IO.File]::WriteAllText($target, (($settings | ConvertTo-Json -Depth 32) + "`n"), (New-Object Text.UTF8Encoding($false)))
     }
@@ -92,6 +137,7 @@ function Merge-ModsSettings([string]$Marketplace, [string]$MarketplacePath, [str
 Install-File $manifest.instructions
 foreach ($agent in $manifest.agents) { Install-File "agents\$agent.md" }
 foreach ($skill in $manifest.skills) { Install-Directory "skills\$skill" }
+foreach ($hook in $HookNames) { Install-File "hooks\$hook.ps1" }
 
 $mods = $manifest.mods
 $modsRelative = "plugins\marketplaces\$($mods.marketplace)"

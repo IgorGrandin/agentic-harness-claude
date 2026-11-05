@@ -6,9 +6,10 @@ import type { Panel, Step } from '../types'
 const PANEL = { plugin: 'handoff', key: 'panel' } as const
 
 // The Refresh offer opens at this many tokens. Closing a finished handoff moves it up by SNOOZE.
-// Chats auto-compact near 300k to 324k, so the offer must open well before that.
-const OFFER_AT = 250_000
-const SNOOZE = 100_000
+// The harness sets autoCompactWindow to 200k, so chats auto-compact near that size.
+// The offer opens at 150k, and offer plus SNOOZE (190k) stays under the 200k window.
+const OFFER_AT = 150_000
+const SNOOZE = 40_000
 const POLL_MS = 5000
 const TICK_MS = 110
 // A quick step still shows its bar filling for this long, so the rows read one by one.
