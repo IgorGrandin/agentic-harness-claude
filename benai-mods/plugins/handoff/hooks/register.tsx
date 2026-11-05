@@ -7,8 +7,8 @@ const PANEL = { plugin: 'handoff', key: 'panel' } as const
 
 // The Refresh offer opens at this many tokens. Closing a finished handoff moves it up by SNOOZE.
 // The harness sets autoCompactWindow to 300k, so chats auto-compact near that size.
-// The handoff starts by itself at 190k, which leaves room to finish the turn and to write it.
-const OFFER_AT = 190_000
+// The handoff starts by itself at 230k: a slice starts near 90k of fixed context and needs about 140k to reach its commit (the first safe point).
+const OFFER_AT = 230_000
 const SNOOZE = 40_000
 // A snooze never moves the offer past this size, so it stays under the 300k window even if the handoff is closed late.
 const SNOOZE_CAP = 290_000
@@ -411,7 +411,13 @@ async function run($: EngineInterface, auto = false) {
       $,
       3,
       async () => {
-        const r = await $.model.fork({ prompt: forkPrompt(cwd, g) })
+        // Right after an abort the fork can answer nothing-to-fork for a moment: try again a few times.
+        let r = await $.model.fork({ prompt: forkPrompt(cwd, g) })
+        for (let k = 0; k < 3 && !r.isAnswered && r.reason === 'nothing-to-fork'; k += 1) {
+          await log($, `fork said nothing-to-fork, retry ${k + 1}`)
+          await $.clock.sleep(2000)
+          r = await $.model.fork({ prompt: forkPrompt(cwd, g) })
+        }
         writeMs = (await $.clock.now()) - writeStartedAt
         return r
       },
@@ -641,7 +647,7 @@ async function checkOffer($: EngineInterface) {
   }
   // A compaction or /clear brings the count down: the automatic handoff and the offer start over.
   // The panel the automatic run left (ready or failed) goes too, or it would block the next run for good.
-  // A panel from a manual run under 190k is not touched: `handed` is only set by the automatic path.
+  // A panel from a manual run under 230k is not touched: `handed` is only set by the automatic path.
   const early = (await $.session.usage()).context.tokens ?? 0
   let p = await getPanel($)
   if (early < OFFER_AT) {

@@ -43,7 +43,7 @@ Open only what the current step needs. A resumed session (one slice) never reope
 | 0, 1 | this skill; the Work Item's "Decisões do dev" |
 | 2 | `execute.md` §1; `analise.md` with `modo=preflight-execute` |
 | 4 (first session) | `execute.md` §2 and §"Ciclo TDD"; `execute-tdd.md`; the plan |
-| 4 (resumed session) | the same two files, and in the plan only the pending slice's section and its rows of the coverage matrix |
+| 4 (resumed session) | the same two files, and in the plan only the pending slice's section and its rows of the coverage matrix, as `show-slice.ps1` prints them (below). Never `Read` the whole plan in a resumed session: it costs 10k+ tokens per slice and the window is spent before the first edit |
 | 5 | `execute-code-review.md`; the rules it opens, always `110` |
 | 6, 7 | `execute.md` §4; rules `110` and `060` |
 | 8, 9, 10 | `execute.md` §5 and §7; [references/metrics.md](references/metrics.md) |
@@ -69,6 +69,8 @@ Do not copy those files here. This map is the only intended difference, section 
 | §6 commit | replaced: slice commits (step 4) and one fix commit (step 6) |
 | §7 `rodadas.csv` | step 9, plus `execute-rodadas.csv` |
 | §8 notify | step 10 |
+
+**Plan excerpt for a resumed session.** `& (Join-Path $skillRoot 'scripts/show-slice.ps1') -PlanPath <plan>` lists the slices; add `-Slice <id>` (for example `S4`) to print the manifest, the "Decisões" section, that slice's section, and the table rows that mention it. Exit 2 means the id was not found: list the slices and pick again. Read the whole plan only in the first session or when the slice excerpt contradicts the code.
 
 Shared scripts live outside the checkout. Set `$skillRoot = Join-Path $env:USERPROFILE '.claude/skills/execute-ig'`.
 

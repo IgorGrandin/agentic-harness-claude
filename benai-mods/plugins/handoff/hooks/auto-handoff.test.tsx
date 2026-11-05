@@ -2,12 +2,13 @@ import { expect, mock, test } from 'claude-code/testing'
 
 const HANDOFF = '# Handoff: Build the refresh mod\n\nContinue work in `~/vault`. Goal: finish it.\n\n## Next steps\n1. Test it.'
 
-type Rig = { kit: any; tokens: { value: number }; failFork: { value: boolean }; completeOnAbort: boolean; onFork: ($: any) => void | Promise<void>; files: Record<string, string>; seq: string[]; dirty: { value: string }; agents: { value: unknown[] } }
+type Rig = { kit: any; tokens: { value: number }; failFork: { value: boolean }; misses: { value: number }; completeOnAbort: boolean; onFork: ($: any) => void | Promise<void>; files: Record<string, string>; seq: string[]; dirty: { value: string }; agents: { value: unknown[] } }
 
 /** Mocks every $ call the automatic handoff makes. `seq` records the order of the calls that matter. */
 function rig(on: Parameters<NonNullable<Parameters<typeof test>[2]>>[1], start: number, over: Partial<Rig> = {}) {
   const tokens = over.tokens ?? { value: start }
   const failFork = over.failFork ?? { value: false }
+  const misses = over.misses ?? { value: 0 }
   const files: Record<string, string> = over.files ?? {}
   const seq: string[] = over.seq ?? []
   const dirty = over.dirty ?? { value: ' M src/a.ts' }
@@ -25,6 +26,10 @@ function rig(on: Parameters<NonNullable<Parameters<typeof test>[2]>>[1], start: 
   on('model.fork', async $ => {
     seq.push('fork')
     await over.onFork?.(over.kit)
+    if (misses.value > 0) {
+      misses.value -= 1
+      return { value: { isAnswered: false, reason: 'nothing-to-fork' } } as never
+    }
     if (failFork.value) return { value: { isAnswered: false, reason: 'api-error', status: 529 } } as never
     return { value: { isAnswered: true, text: HANDOFF, usage: {} } } as never
   })
@@ -64,12 +69,12 @@ function rig(on: Parameters<NonNullable<Parameters<typeof test>[2]>>[1], start: 
     const { Text } = $.ui.resolve(e)
     return <Text>REST</Text>
   })
-  return { clock, files, seq, dirty, agents, captured, tokens, failFork }
+  return { clock, files, seq, dirty, agents, captured, tokens, failFork, misses }
 }
 
 for (const surface of ['desktop', 'terminal'] as const) {
-  test(`at 190k it waits for a safe point, stops the agent, writes the handoff, clears and sends it (${surface})`, { timeoutMs: 60000 }, async ($, on) => {
-    const { clock, files, seq, dirty, agents, captured } = rig(on, 195_000, { kit: $ })
+  test(`at 230k it waits for a safe point, stops the agent, writes the handoff, clears and sends it (${surface})`, { timeoutMs: 60000 }, async ($, on) => {
+    const { clock, files, seq, dirty, agents, captured } = rig(on, 235_000, { kit: $ })
     await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface, isInteractive: true } as never)
     await $.turn.start({ text: 'work', turnId: 'T1' } as never)
 
@@ -100,7 +105,7 @@ for (const surface of ['desktop', 'terminal'] as const) {
 }
 
 test('with no turn running there is nothing to abort: the handoff is written, then clear and send', { timeoutMs: 60000 }, async ($, on) => {
-  const { clock, seq, dirty } = rig(on, 195_000)
+  const { clock, seq, dirty } = rig(on, 235_000)
   dirty.value = ''
   await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface: 'desktop', isInteractive: true } as never)
   await clock.advance(40_000)
@@ -109,7 +114,7 @@ test('with no turn running there is nothing to abort: the handoff is written, th
 
 test('a tree that turns dirty while the handoff is written is not cleared', { timeoutMs: 60000 }, async ($, on) => {
   const dirty = { value: '' }
-  const { clock, seq, files } = rig(on, 195_000, { dirty, onFork: () => { dirty.value = ' M src/late.ts' } })
+  const { clock, seq, files } = rig(on, 235_000, { dirty, onFork: () => { dirty.value = ' M src/late.ts' } })
   await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface: 'desktop', isInteractive: true } as never)
   await clock.advance(40_000)
   expect(seq, 'no clear and no submit after the tree changed').toEqual(['fork'])
@@ -129,7 +134,7 @@ test('at the hard limit with no safe point only the handoff is written: no abort
 
 test('a message typed while the handoff is written starts a new turn: the chat is not cleared', { timeoutMs: 60000 }, async ($, on) => {
   const dirty = { value: '' }
-  const { clock, seq, files } = rig(on, 195_000, { kit: $, dirty, onFork: async $ => { await $.turn.start({ text: 'new message', turnId: 'T2' } as never) } })
+  const { clock, seq, files } = rig(on, 235_000, { kit: $, dirty, onFork: async $ => { await $.turn.start({ text: 'new message', turnId: 'T2' } as never) } })
   await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface: 'desktop', isInteractive: true } as never)
   await clock.advance(40_000)
   expect(seq, 'no clear and no submit over a live turn').toEqual(['fork'])
@@ -139,7 +144,7 @@ test('a message typed while the handoff is written starts a new turn: the chat i
 
 test('an abort that does not land stops the run before the handoff, and the next poll tries again', { timeoutMs: 60000 }, async ($, on) => {
   const dirty = { value: '' }
-  const { clock, seq } = rig(on, 195_000, { dirty, completeOnAbort: false })
+  const { clock, seq } = rig(on, 235_000, { dirty, completeOnAbort: false })
   await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface: 'desktop', isInteractive: true } as never)
   await $.turn.start({ text: 'work', turnId: 'T1' } as never)
   await clock.advance(30_000)
@@ -150,9 +155,9 @@ test('an abort that does not land stops the run before the handoff, and the next
 
 test('a failed run leaves its panel up, and the automatic handoff re-arms once the count drops', { timeoutMs: 60000 }, async ($, on) => {
   const dirty = { value: '' }
-  const tokens = { value: 195_000 }
+  const tokens = { value: 235_000 }
   const failFork = { value: true }
-  const { clock, seq } = rig(on, 195_000, { dirty, tokens, failFork })
+  const { clock, seq } = rig(on, 235_000, { dirty, tokens, failFork })
   await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface: 'desktop', isInteractive: true } as never)
   await clock.advance(30_000)
   expect(seq, 'the first run failed at the model step').toEqual(['fork'])
@@ -163,7 +168,19 @@ test('a failed run leaves its panel up, and the automatic handoff re-arms once t
   failFork.value = false
   tokens.value = 60_000
   await clock.advance(10_000)
-  tokens.value = 195_000
+  tokens.value = 235_000
   await clock.advance(40_000)
   expect(seq.slice(-3), 'armed again: handoff, clear, send').toEqual(['fork', 'clear', 'submit'])
+})
+
+test('nothing-to-fork right after the abort is retried, then the handoff is written and sent', { timeoutMs: 60000 }, async ($, on) => {
+  const misses = { value: 2 }
+  const { clock, seq, captured } = rig(on, 235_000, { kit: $, dirty: { value: '' }, misses })
+  await $.session.start({ cwd: '/Users/test/vault' } as never)
+  await $.turn.start({ text: 'work', turnId: 'T1' } as never)
+  await clock.advance(30_000)
+  await clock.advance(30_000)
+  expect(seq.filter(x => x === 'fork').length, 'two misses and one answer').toBe(3)
+  expect(seq).toContain('clear')
+  expect(captured.submitted).toContain('# Handoff:')
 })

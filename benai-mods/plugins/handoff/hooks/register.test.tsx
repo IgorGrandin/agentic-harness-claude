@@ -82,11 +82,11 @@ for (const surface of ['desktop', 'terminal'] as const) {
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
     expect(await v.find({ key: 'refresh' }), 'no offer at 189,999').toBeUndefined()
 
-    tokens = 190_000
+    tokens = 230_000
     await $.turn.complete({ answer: '' } as never)
     await clock.settle()
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'offer at 190,000').toBeDefined()
+    expect(await v.find({ key: 'refresh' }), 'offer at 230,000').toBeDefined()
 
     await v.press({ key: 'refresh' })
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
@@ -127,7 +127,7 @@ for (const surface of ['desktop', 'terminal'] as const) {
   })
 }
 
-for (const [surface, tokens] of [['desktop', 190_000], ['terminal', 190_000], ['desktop', 215_000]] as const) {
+for (const [surface, tokens] of [['desktop', 230_000], ['terminal', 230_000], ['desktop', 245_000]] as const) {
   test(`closing a finished handoff at ${tokens} snoozes the offer under the 300k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
     const files: Record<string, string> = {}
     const store: Record<string, unknown> = { autorun: false }
@@ -342,18 +342,18 @@ for (const surface of ['desktop', 'terminal'] as const) {
   })
 }
 
-test('hidden flag hides the offer but the handoff still starts by itself at 190k', { timeoutMs: 30000 }, async ($, on) => {
+test('hidden flag hides the offer but the handoff still starts by itself at 230k', { timeoutMs: 30000 }, async ($, on) => {
   const files: Record<string, string> = { [SW]: JSON.stringify({ 'handoff:hidden': true }) }
   const tokens = { value: 100_000 }
   const { clock } = rig(on, files, tokens, true)
   await $.session.start({ ...begin, surface: 'desktop' } as never)
   await clock.settle()
   await clock.advance(10_000)
-  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'no run under 190k').toBe(false)
+  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'no run under 230k').toBe(false)
 
-  tokens.value = 190_000
+  tokens.value = 230_000
   await clock.advance(10_000)
-  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'a run was attempted at 190k while hidden').toBe(true)
+  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'a run was attempted at 230k while hidden').toBe(true)
   const v = await $.ui.mount({ plugin: 'handoff', surface: 'desktop', component: 'AbovePrompt', props: offerProps })
   expect(await v.find({ key: 'refresh' }), 'the offer button stays hidden').toBeUndefined()
 })
