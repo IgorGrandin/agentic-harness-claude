@@ -1,0 +1,8 @@
+﻿"session_id";"updated_at";"work_item";"wi_source";"phase";"role";"model";"messages";"input";"cache_write_5m";"cache_write_1h";"cache_read";"output";"cost_usd"
+"s1";"2026-11-01T10:00:00-03:00";"3001";"branch";"execute-ig";"main";"claude-haiku-5-5";"10";"1";"0";"0";"1000";"5";"1.5000"
+"s1";"2026-11-01T10:00:00-03:00";"3001";"branch";"execute-ig";"sub";"claude-haiku-5-5";"5";"1";"0";"0";"500";"5";"0.2500"
+"s2";"2026-11-02T10:00:00-03:00";"3001";"branch";"execute-ig";"main";"claude-sonnet-5-5";"10";"1";"0";"0";"4000";"5";"3.0000"
+"s2";"2026-11-02T10:00:00-03:00";"3001";"branch";"execute-ig";"sub";"claude-sonnet-5-5";"10";"1";"0";"0";"2000";"5";"1.0000"
+"s3";"2026-11-03T10:00:00-03:00";"3002";"prompt";"plan-task";"main";"claude-opus-5-5";"4";"1";"0";"0";"800";"5";"2.2500"
+"s4";"2026-11-03T11:00:00-03:00";"";"none";"";"main";"claude-opus-5-5";"2";"1";"0";"0";"100";"5";"0.7500"
+"s5";"2026-11-04T10:00:00-03:00";"3003";"branch";"revise";"main";"claude-haiku-5-5";"3";"1";"0";"0";"90";"5";"0.1000"
