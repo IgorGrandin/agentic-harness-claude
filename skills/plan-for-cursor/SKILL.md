@@ -107,6 +107,13 @@ Projeto citado no plano tem de existir na branch: `ls platform/backend/tests/` a
 
 > Caso (WI 3685, 2026-10-23): o plano pediu "U (Crm): `MessageFieldSourceReader`" e "U: corpo de 513 KB no preview → 413". O leitor lê o banco e já tinha `MessageFieldSourceReaderIntegrationTests.cs` no Integration; o 413 vem do filtro de tamanho, e o teste do próprio molde citado (`EmailVolumeUnsubscribeEndpoints.cs`) mora no `Broker.HostSmoke`. O executor teve de mover os dois.
 
+**(h) Composição de produção: o harness do teste monta o DI como o host real.** Teste de Integration ou HostSmoke que registra os serviços à mão, ou com uma lista própria, passa em cima de uma composição que o host nunca roda; o teste fica verde e a produção não resolve o serviço. Para **cada fatia** que pede teste de Integration ou HostSmoke, escreva uma linha `Composição:` que:
+
+- nomeie o arquivo onde o host de produção registra os serviços do caminho testado (o `Program.cs`, a extensão `Add*` ou o módulo de DI, com o caminho inteiro);
+- diga como o harness do teste usa **esse mesmo registro**, ou qual teste prova a composição.
+
+Sem a linha, ou com a linha vaga, o `check-plan.ps1` bloqueia o plano novo. Abra o arquivo de composição antes de escrever a linha: dizer "usa o mesmo registro" de memória é o mesmo erro do fixture não traçado em (b).
+
 ### 5. Gate por gatilho, escrito
 
 Derive o gate dos gatilhos em `.cursor/rules/110-cursor-workflow.mdc` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`" — **abra os dois**. No plano, diga qual gatilho disparou e **qual não disparou, e por quê**.
@@ -117,9 +124,14 @@ Somar suítes "por precaução" não é rigor; o ADR-0037 chama isso de custo qu
 
 > Caso: pus `Broker.HostSmoke` numa fatia que não tocava `Program.cs` nem `*Endpoints*.cs`.
 
-### 6. As rules da área, despachadas pela `005`
+### 6. ADRs e rules da área
 
-Abra `.cursor/rules/005-documentation-context-hierarchy.mdc`, deixe o mapa despachar pelas áreas que a mudança toca, e **abra as rules indicadas**. Nomeie no plano quais foram consultadas.
+Dois conjuntos, os dois abertos, nenhum de memória. **Todo plano passa por este passe, inclusive os planos de correção do `/revise` e do `/review-pr`**: ele é a ancoragem do `plan-task` §3, e plano de correção que a pula pode contradizer um ADR que o plano original respeitava.
+
+- **ADRs vigentes da área** (`docs/adr/`, resumo em `docs/governance/vocabulario-e-decisoes.md` §2): liste os que a mudança toca e confira que **nenhuma fatia os contradiz**. Conflito não vira ressalva dentro do plano: aplique a skill `domain-modeling`, e a decisão é do dev, como no `plan-task` §3.
+- **Rules da área**, despachadas pelo mapa: abra `.cursor/rules/005-documentation-context-hierarchy.mdc`, deixe o mapa despachar pelas áreas que a mudança toca, e **abra as rules indicadas**.
+
+Nomeie no plano os ADRs, com a decisão conferida, e as rules consultadas. A linha `ADR/Rules` da tabela de verificações recebe os dois.
 
 Lembre da assimetria: o Cursor recebe metade das rules automaticamente pelos `globs`; **para mim não chega nenhuma**. Rule não aberta é rule não checada.
 
@@ -235,7 +247,7 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 | Testes | para cada teste: linha de produção alvo nomeada · caminho fixture→linha traçado (ou fixture delegado) · harness alcança a condição · **asserção negativa provocada antes de escrita, ou rotulada** | linha citada |
 | **Projeto do teste** | **para cada teste: projeto existente na branch + teste vizinho que já cobre a mesma classe ou o molde citado; comportamento de pipeline HTTP, banco ou host fora do Unit; sem vizinho, busca citada (passe 12)** | **vizinho citado por caminho** |
 | Gate | gatilho N disparou; gatilho M não, porque … | `110` §Gate |
-| Rules | abertas: `010`, `030`, `040` | mapa da `005` |
+| **ADR/Rules** | **ADRs vigentes da área e a decisão conferida (ex.: ADR-0060 D31: worker não compõe Crm) · rules abertas: `010`, `030`, `040`** | **ADR citado · mapa da `005`** |
 | **Guarda/sentinela** (se aplicável) | **referenciadores enumerados por grep do nome da entidade, com FK × guarda-de-aplicação para cada um · sentinela mandada provocar com o identificador literal que a ADR rejeitou** | **grep citado · nome da ADR** |
 | **Cápsula** | **todo caminho completo a partir da raiz (nenhuma reticência) · nenhum ponteiro para documento maior que este plano** | **conferido** |
 | **Cobertura** | **grafo de fatias (dono, write-set, dependências, paralelismo) · matriz AC → comportamento → fronteira → teste → discriminante · dimensões de risco aplicáveis e excluídas · desafio do `reviewer` feito e achados resolvidos · vermelho observado ou limitação registrada** | **matriz no plano · achados do reviewer** |
@@ -246,7 +258,7 @@ Todo plano fecha com esta seção — é o que torna a disciplina **auditável p
 
 Se algum passe não foi feito, **diga qual e por quê** em vez de omitir. Silêncio não se distingue de esquecimento.
 
-Antes de commitar, rode a parte determinística dos passes: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>` na raiz do repo. Saída 1 (BLOCK) se corrige no plano antes de entregar; saída 2 (UNVERIFIED) vai para a tabela como verificação que não rodou. O script cobre manifesto, cápsula, projeto de teste, Reuso, discriminante e as linhas da tabela; os passes de julgamento continuam sendo seus.
+Antes de commitar, rode a parte determinística dos passes: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>` na raiz do repo. Saída 1 (BLOCK) se corrige no plano antes de entregar; saída 2 (UNVERIFIED) vai para a tabela como verificação que não rodou. O script cobre manifesto, cápsula, projeto de teste, Reuso, discriminante e as linhas da tabela; os passes de julgamento continuam sendo seus. Num plano **novo ou alterado** em relação ao `HEAD` (não commitado, ou com diff), ele também exige a linha `ADR/Rules` e a linha `Composição:` em toda fatia que cita teste de Integration ou HostSmoke; plano já commitado e intocado continua aceito com a linha `Rules` antiga.
 
 ## O que este arquivo não cobre
 

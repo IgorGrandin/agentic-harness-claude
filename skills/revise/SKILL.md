@@ -112,7 +112,7 @@ Mais três perguntas — nenhuma respondida por suíte verde, e por isso ningué
 
 Antes de reportar qualquer achado, faça diff contra o **registro canônico de resíduos**: a tabela "Resíduos e decisões" do build-log do passo e a seção de status/histórico da ADR do lote. Um resíduo que está lá **com decisão registrada** (adiado, aceito, encaminhado para outro item) **não volta ao relatório como achado** — renumerá-lo a cada passada é o que transforma auditoria em órbita. Ele só reabre com **evidência nova, citada explicitamente** (novo dado empírico, mudança de custo, dependência que apareceu). Sem evidência nova, a menção certa é uma linha de confirmação: "resíduo X segue como decidido".
 
-O espelho disso na saída: **achado novo que o dev decidir adiar entra na tabela de resíduos ao fechar a rodada** (passo 5) — é isso que faz a próxima auditoria começar do saldo, não do zero.
+O espelho disso na saída: **achado novo que o dev decidir adiar entra na tabela "Resíduos e decisões" do build-log ao fechar a rodada** — é isso que faz a próxima auditoria começar do saldo, não do zero.
 
 ## 3. Veredicto
 
@@ -120,11 +120,17 @@ Use o vocabulário já definido em `code-audit-mode.md`: **conforme** / **confor
 
 ## 4. Se correção for necessária
 
-Desenhe um plano novo — artefato, nunca código — e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/execute-ig` de novo.
+Desenhe um plano novo — artefato, nunca código — só com os achados que valem plano (**bloqueantes**, ou não bloqueantes que o dev mandar corrigir; veja a regra mais abaixo) e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/execute-ig` de novo.
 
-**Antes de entregar o plano, aplique a skill `plan-for-cursor`** — os passes e a seção obrigatória de verificações. Ela existe porque planos meus já saíram com passo impossível de executar (porta inexistente), teste rotulado com o que não prova, e gate somado por precaução.
+**Antes de entregar o plano:**
 
-**Nunca edite o código diretamente**, nem para achados pequenos ("só uma mensagem de erro", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção mesmo em pós-auditoria (`never-edit-product-code.md`). Todo achado vira item da lista do plano de correção para o Cursor executar.
+1. **Ancore a área dos achados** com o `plan-task` §3: ADRs vigentes, rules da área, release corrente e vocabulário canônico. Plano de correção não está isento: conflito com ADR vira `domain-modeling` e decisão do dev, não ressalva no plano.
+2. **Aplique a skill `plan-for-cursor`** — os passes e a seção obrigatória de verificações (a linha `ADR/Rules` leva o que o item 1 conferiu).
+3. **Rode o `check-plan.ps1`** (`& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`, na raiz do repo). BLOCK se corrige no plano antes de entregar; UNVERIFIED vai para a tabela de verificações como verificação que não rodou.
+
+A skill `plan-for-cursor` existe porque planos meus já saíram com passo impossível de executar (porta inexistente), teste rotulado com o que não prova, e gate somado por precaução.
+
+**Nunca edite o código diretamente**, nem para achados pequenos ("só uma mensagem de erro", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção mesmo em pós-auditoria (`never-edit-product-code.md`). Só achado **bloqueante**, ou não bloqueante que o dev mandar corrigir, vira item do plano de correção para o Cursor executar. O resto vai para a tabela "Resíduos e decisões" do build-log, com a decisão registrada (adiado, aceito, encaminhado) — é o que mantém a próxima passada começando do saldo.
 
 ## 5. Se aprovado
 

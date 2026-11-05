@@ -27,7 +27,7 @@ $table=@"
 | Testes | ok | - |
 | **Projeto do teste** | ok | - |
 | Gate | ok | - |
-| Rules | ok | - |
+| **ADR/Rules** | ok | - |
 | **C${a}psula** | ok | - |
 | **Cobertura** | ok | - |
 | **Reuso** | ok | - |
@@ -143,6 +143,52 @@ try {
     Require (Has $r.Result 5 'BLOCK' '*"Projeto do teste"*') 'Item 5: missing Projeto do teste row not blocked'
     Require (Has $r.Result 5 'BLOCK' '*"Erros declarados"*') 'Item 5: missing Erros declarados row not blocked'
     Require (Has $r.Result 5 'BLOCK' '*"C*psula"*') 'Item 5: missing accented row not blocked'
+
+    # AC10 - ADR/Rules row: required in a new or changed plan, not in one committed and untouched.
+    # Fixtures live in tests/fixtures/check-plan/; {{SHA}} is replaced by the temp repo's base commit.
+    function Fixture([string]$Name,[string]$Dest){
+        $text=[IO.File]::ReadAllText((Join-Path $root "tests/fixtures/check-plan/$Name"),[Text.Encoding]::UTF8)
+        $text=($text -replace "`r`n","`n") -replace '\{\{SHA\}\}',$sha
+        Put $Dest $text
+        $text
+    }
+    $adrFixture=Fixture 'adr-rules.plan.md' 'p/adr-new.plan.md'
+    $r=Run-Check 'p/adr-new.plan.md'
+    Require ($r.Exit -eq 0 -and $r.Result.Status -eq 'CLEAN' -and $r.Result.NewPlan -eq $true) "AC10: new plan with ADR/Rules and Composicao was not clean: exit $($r.Exit) $(($r.Result.Findings | ConvertTo-Json -Compress))"
+    $legacyFixture=Fixture 'legacy-rules.plan.md' 'p/legacy-new.plan.md'
+    $r=Run-Check 'p/legacy-new.plan.md'
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*"ADR/Rules"*')) "AC10: new plan with only the old Rules row was not blocked: exit $($r.Exit)"
+    G add -A; G commit -q -m plans
+    Put 'p/legacy-new.plan.md' $legacyFixture
+    $r=Run-Check 'p/legacy-new.plan.md'
+    Require ($r.Exit -eq 0 -and $r.Result.NewPlan -eq $false) "AC10: committed untouched plan with the old Rules row was rejected: exit $($r.Exit) $(($r.Result.Findings | ConvertTo-Json -Compress))"
+    Put 'p/legacy-new.plan.md' ($legacyFixture + "`nMais uma linha.`n")
+    $r=Run-Check 'p/legacy-new.plan.md'
+    Require ($r.Exit -eq 1 -and $r.Result.NewPlan -eq $true -and (Has $r.Result 5 'BLOCK' '*"ADR/Rules"*')) "AC10: committed plan changed against HEAD kept the old Rules row: exit $($r.Exit)"
+    Put 'p/legacy-new.plan.md' $legacyFixture
+    Put 'p/staged.plan.md' $legacyFixture
+    G add -- p/staged.plan.md
+    $r=Run-Check 'p/staged.plan.md'
+    Require ($r.Exit -eq 1 -and $r.Result.NewPlan -eq $true) "AC10: plan staged but not committed was taken as committed: exit $($r.Exit)"
+
+    # AC11 - Composicao line: every slice of a new plan that cites an Integration or HostSmoke test.
+    $noComp=($adrFixture -split "`n" | Where-Object { $_ -notmatch 'Composi' }) -join "`n"
+    Put 'p/nocomp.plan.md' $noComp
+    $r=Run-Check 'p/nocomp.plan.md'
+    Require ($r.Exit -eq 1 -and (Has $r.Result 4 'BLOCK' '### Fatia 1*Composicao:*')) "AC11: Integration slice without Composicao was not blocked: exit $($r.Exit)"
+    Put 'p/nocomp-host.plan.md' ($noComp -replace 'Insurtech\.Integration\.Tests/M/FooIntegrationTests','Insurtech.HostSmoke.Tests/M/FooSmokeTests')
+    $r=Run-Check 'p/nocomp-host.plan.md'
+    Require ($r.Exit -eq 1 -and (Has $r.Result 4 'BLOCK' '### Fatia 1*Composicao:*')) "AC11: HostSmoke slice without Composicao was not blocked: exit $($r.Exit)"
+    Put 'p/emptycomp.plan.md' ($adrFixture -replace '(?m)^- \*\*Composi.*$',"- **Composi${cao}:**")
+    $r=Run-Check 'p/emptycomp.plan.md'
+    Require (Has $r.Result 4 'BLOCK' '### Fatia 1*Composicao:*') 'AC11: an empty Composicao line was accepted'
+    # The line of one slice does not cover another slice.
+    $slice2="### Fatia 2 - Host`n`n- Testes em ``platform/backend/tests/Insurtech.Integration.Tests/M/BarIntegrationTests.cs``.`n- **Discriminante da fatia:** ``BarIntegrationTests``.`n- **Composi${cao}:** ``Program.cs`` registra ``AddBar()``; o harness usa o mesmo.`n`n**Reuso:** a fatia nao cria artefato novo.`n`n# Verifica"
+    $second=$noComp -replace '(?m)^# Verifica',$slice2
+    Put 'p/twocomp.plan.md' $second
+    $r=Run-Check 'p/twocomp.plan.md'
+    Require (Has $r.Result 4 'BLOCK' '### Fatia 1*Composicao:*') 'AC11: Composicao of slice 2 covered slice 1'
+    Require (-not (Has $r.Result 4 'BLOCK' '### Fatia 2*Composicao:*')) 'AC11: slice 2 with its own Composicao line was blocked'
 
     # Item 0 - the check itself fails.
     $r=Run-Check 'p/missing.plan.md'

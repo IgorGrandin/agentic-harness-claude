@@ -12,6 +12,9 @@ param(
 #   3 every backend test project the plan cites exists, or is created in a Reuso block
 #   4 every slice has a Reuso block and names its discriminante
 #   5 the verification table has every mandatory row
+# A "new" plan (not tracked by git, or different from HEAD) must also carry the ADR/Rules row
+# (item 5) and, in every slice that cites an Integration or HostSmoke test, a "Composicao:" line
+# (item 4). A plan already committed and untouched keeps passing with the old "Rules" row.
 # Exit 0 = clean, 1 = at least one BLOCK, 2 = no BLOCK but a check could not run
 # or the script failed (UNVERIFIED, item 0 for a failure).
 # The judgment parts of the passes (neighbor test, declared error codes, traced
@@ -25,7 +28,10 @@ function Add-Finding([int]$Item, [string]$Severity, [int]$Line, [string]$Message
     $findings.Add([pscustomobject]@{ Item = $Item; Severity = $Severity; Line = $Line; Message = $Message })
 }
 # Non-ASCII written as code points: Windows PowerShell reads a BOM-less script as ANSI.
-$requiredRows = @('Manifesto', 'Encanamento', 'Ambiente', 'Testes', 'Projeto do teste', 'Gate', 'Rules', "C$([char]0xE1)psula", 'Cobertura', 'Reuso', "Contradi$([char]0xE7)$([char]0xE3)o", 'Erros declarados')
+$requiredRowsHead = @('Manifesto', 'Encanamento', 'Ambiente', 'Testes', 'Projeto do teste', 'Gate')
+$requiredRowsTail = @("C$([char]0xE1)psula", 'Cobertura', 'Reuso', "Contradi$([char]0xE7)$([char]0xE3)o", 'Erros declarados')
+$compositionLine = "(?m)^\s*(?:[-*]\s+)?\**Composi$([char]0xE7)$([char]0xE3)o(?:\*\*)?:(?:\*\*)?[ \t]*[^\s*]"
+$isNewPlan = $true
 $testsDir = 'platform/backend/tests'
 
 $previousEncoding = $null
@@ -37,6 +43,18 @@ try {
     $full = if ([IO.Path]::IsPathRooted($PlanPath)) { $PlanPath } else { Join-Path $RepoRoot $PlanPath }
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Plan not found: $PlanPath" }
     $lines = @(([IO.File]::ReadAllText($full, [Text.Encoding]::UTF8) -replace "`r`n", "`n").Split("`n"))
+    # New plan = not tracked by git, or different from HEAD (staged or not). Any git doubt reads as new.
+    $rel = $full
+    $rootPrefix = $RepoRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    if ($full.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) { $rel = $full.Substring($rootPrefix.Length) }
+    $previous = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try {
+        & git -C $RepoRoot ls-files --error-unmatch -- $rel 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            & git -C $RepoRoot diff --quiet HEAD -- $rel 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $isNewPlan = $false }
+        }
+    } finally { $ErrorActionPreference = $previous }
     # A "#" line inside a fenced code block (shell or YAML comment) is not a heading.
     $fenced = [bool[]]::new($lines.Count)
     $inFence = $false
@@ -140,6 +158,9 @@ try {
         if ($body -notmatch '(?i)discriminante') {
             Add-Finding 4 'BLOCK' ($s.Start + 1) "$($s.Title): names no discriminante, nor says it has none (pass 4e)."
         }
+        if ($isNewPlan -and $body -cmatch 'Integration|HostSmoke' -and $body -notmatch $compositionLine) {
+            Add-Finding 4 'BLOCK' ($s.Start + 1) "$($s.Title): cites an Integration or HostSmoke test but has no Composicao: line naming where the production host registers the services and how the test harness uses that registration (pass 4h)."
+        }
     }
 
     # Item 5 - verification table.
@@ -153,8 +174,11 @@ try {
             if ($h -and $h -le 3) { break }
             if ($lines[$j] -match '^\s*\|([^|]*)\|') { $cells += ($Matches[1] -replace '\*', '').Trim() }
         }
-        foreach ($row in $requiredRows) {
-            if (-not @($cells | Where-Object { $_ -like "$row*" }).Count) {
+        foreach ($row in @($requiredRowsHead + 'ADR/Rules' + $requiredRowsTail)) {
+            $has = @($cells | Where-Object { $_ -like "$row*" }).Count -gt 0
+            # A plan already committed and untouched may still carry the old "Rules" row.
+            if (-not $has -and $row -eq 'ADR/Rules' -and -not $isNewPlan) { $has = @($cells | Where-Object { $_ -like 'Rules*' }).Count -gt 0 }
+            if (-not $has) {
                 Add-Finding 5 'BLOCK' ($table + 1) "Verification table has no ""$row"" row; if the pass does not apply, keep the row and say why."
             }
         }
@@ -167,7 +191,7 @@ try {
 $exit = if (@($findings | Where-Object Severity -eq 'BLOCK').Count) { 1 } elseif (@($findings | Where-Object Severity -eq 'UNVERIFIED').Count) { 2 } else { 0 }
 $status = @('CLEAN', 'BLOCKED', 'UNVERIFIED')[$exit]
 if ($AsJson) {
-    [pscustomobject]@{ Status = $status; Plan = $PlanPath; Findings = @($findings) } | ConvertTo-Json -Depth 4 -Compress
+    [pscustomobject]@{ Status = $status; Plan = $PlanPath; NewPlan = $isNewPlan; Findings = @($findings) } | ConvertTo-Json -Depth 4 -Compress
 } else {
     foreach ($f in $findings) {
         $where = if ($f.Line) { " ${PlanPath}:$($f.Line)" } else { " $PlanPath" }
