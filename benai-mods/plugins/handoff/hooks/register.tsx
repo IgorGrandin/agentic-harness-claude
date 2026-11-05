@@ -542,16 +542,22 @@ async function checkOffer($: EngineInterface) {
   // An offer asked for by Show stays until it is answered.
   if (forced && p) return
   forced = false
-  if (hidden) {
-    if (p) await setPanel($, null)
-    return
-  }
   const { context } = await $.session.usage()
   const tokens = context.tokens ?? 0
   // A compaction or /clear brings the count down: the offer starts over.
   if (tokens < OFFER_AT && snoozedTo > OFFER_AT) {
     snoozedTo = OFFER_AT
     if (sid) await $.store.set(`snooze:${sid}`, snoozedTo)
+  }
+  if (hidden) {
+    // Hidden only hides the offer band. The automatic handoff at OFFER_AT still runs,
+    // so the chat never reaches the compact limit without one.
+    if (p) {
+      await setPanel($, null)
+      return
+    }
+    if (tokens >= snoozedTo && sid && (await $.store.get('autorun').catch(() => undefined)) !== false) void run($).catch(() => undefined)
+    return
   }
   if (tokens >= snoozedTo) {
     if (!p || Math.abs(p.tokens - tokens) >= 1000) {

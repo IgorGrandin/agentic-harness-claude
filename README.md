@@ -83,7 +83,7 @@ Com `-RunTests`, roda também os testes de `tests/`:
 - o instalador, num `~/.claude` temporário;
 - a parada por fatia do `/execute-ig` (`check-slice-commit.ps1`), as âncoras do `check-plan.ps1` e o relatório de custo por WI (`scripts/report-wi-cost.ps1`).
 
-O `install.ps1` fixa `autoCompactWindow` em 300k. A oferta de Refresh do mod `handoff` abre em 190k tokens (`OFFER_AT`), com adiamento de 40k limitado a 290k, sempre abaixo da janela. O hook `PreCompact` foi removido (bloqueava o auto-compact por poucos segundos); o `install.ps1` tira a entrada antiga do `settings.json`. Os testes do mod rodam com `claude plugin test` e não estão no `verify.ps1`; no Windows a suíte já falhava antes desta mudança.
+O `install.ps1` fixa `autoCompactWindow` em 300k. A oferta de Refresh do mod `handoff` abre em 190k tokens (`OFFER_AT`), com adiamento de 40k limitado a 290k, sempre abaixo da janela. O flag `handoff:hidden` (botão Hide) esconde só o aviso; o handoff automático aos 190k continua. O hook `PreCompact` foi removido (bloqueava o auto-compact por poucos segundos); o `install.ps1` tira a entrada antiga do `settings.json`. Os testes do mod rodam com `claude plugin test` e não estão no `verify.ps1`; no Windows a suíte já falhava antes desta mudança.
 
 ## Outros hosts
 

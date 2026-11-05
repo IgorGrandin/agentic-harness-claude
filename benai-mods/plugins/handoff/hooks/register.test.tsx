@@ -276,7 +276,7 @@ const SW = '/.claude/mods/switches.json'
 const OPEN = '/.claude/mods/.open-handoff-sid'
 
 /** Mocks every $ call the offer makes; `files` stands in for the disk, keyed by path end. */
-function rig(on: On, files: Record<string, string>, tokens: { value: number }) {
+function rig(on: On, files: Record<string, string>, tokens: { value: number }, autorun = false) {
   const toasts: string[] = []
   const keyOf = (path: string) => Object.keys(files).find(k => path.endsWith(k))
   on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
@@ -298,7 +298,7 @@ function rig(on: On, files: Record<string, string>, tokens: { value: number }) {
     if (hit) delete files[hit]
     return { value: { exitCode: 0, stdout: '', stderr: '' } } as never
   })
-  on('store.get', async () => ({ value: undefined }) as never)
+  on('store.get', async (_$, e) => ({ value: (e as { key: string }).key === 'autorun' && !autorun ? false : undefined }) as never)
   on('store.set', async () => ({ value: undefined }) as never)
   on('ui.toast', async ($, e) => {
     toasts.push((e as { text: string }).text)
@@ -340,6 +340,22 @@ for (const surface of ['desktop', 'terminal'] as const) {
     expect(await v.find({ text: 'REST' }), 'other bands still draw').toBeDefined()
   })
 }
+
+test('hidden flag hides the offer but the handoff still starts by itself at 190k', { timeoutMs: 30000 }, async ($, on) => {
+  const files: Record<string, string> = { [SW]: JSON.stringify({ 'handoff:hidden': true }) }
+  const tokens = { value: 100_000 }
+  const { clock } = rig(on, files, tokens, true)
+  await $.session.start({ ...begin, surface: 'desktop' } as never)
+  await clock.settle()
+  await clock.advance(10_000)
+  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'no run under 190k').toBe(false)
+
+  tokens.value = 190_000
+  await clock.advance(10_000)
+  expect(Object.keys(files).some(k => k.endsWith('/handoff.log')), 'a run was attempted at 190k while hidden').toBe(true)
+  const v = await $.ui.mount({ plugin: 'handoff', surface: 'desktop', component: 'AbovePrompt', props: offerProps })
+  expect(await v.find({ key: 'refresh' }), 'the offer button stays hidden').toBeUndefined()
+})
 
 for (const surface of ['desktop', 'terminal'] as const) {
   test(`clearing the flag brings the offer back; Show and /refresh open it at any size (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
