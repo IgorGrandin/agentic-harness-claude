@@ -12,6 +12,8 @@ const OFFER_AT = 190_000
 const SNOOZE = 40_000
 // A snooze never moves the offer past this size, so it stays under the 300k window even if the handoff is closed late.
 const SNOOZE_CAP = 290_000
+// With the tree dirty at this size the handoff is still written (no abort, no /clear), so one exists before the 300k window compacts.
+const HARD_AT = SNOOZE_CAP - 20_000
 const POLL_MS = 5000
 const TICK_MS = 110
 // A quick step still shows its bar filling for this long, so the rows read one by one.
@@ -54,6 +56,13 @@ let writeStartedAt = 0
 let writeMs = 0
 let running = -1
 let stepStartedAt = 0
+// The running turn, from turn.start. Abort needs its id.
+let turnId = ''
+let turnRunning = false
+// The automatic handoff was launched for this stretch of the chat; /clear or a compaction re-arms it.
+let handed = false
+let starting = false
+let lastWhy = ''
 
 // The /mods switchboard turns this mod off in every chat with switches.json.
 // "handoff:hidden": true in the same file stops the automatic Refresh offer in every chat.
@@ -361,8 +370,11 @@ ${list(g.links)}
 `
 }
 
-async function run($: EngineInterface) {
-  if (busy) return
+async function run($: EngineInterface, auto = false) {
+  if (busy) {
+    if (auto) await log($, 'automatic run skipped: another run is busy; the agent was already stopped')
+    return
+  }
   busy = true
   let draftPath = ''
   const { context } = await $.session.usage()
@@ -431,6 +443,11 @@ async function run($: EngineInterface) {
     await log($, `ok ${tilde(saved)} ${text.split(/\s+/).length} words in ${Math.round(writeMs / 1000)} s`)
     // The full handoff replaces the draft.
     if (draftPath) await rmf($, draftPath)
+    if (auto) {
+      // The agent was stopped at a safe point: clear this chat and send the handoff into it.
+      await clearAndResume($, cwd)
+      return
+    }
     // A new chat opens by itself only from a clean tree (after a slice commit). Otherwise the
     // handoff stays here and the panel warns, so half-written code is not carried over.
     const dirty = await dirtyFiles($, cwd)
@@ -462,6 +479,91 @@ async function run($: EngineInterface) {
     running = -1
     busy = false
   }
+}
+
+// Why this is not a safe point, or '' when it is: tree committed and no subagent running.
+// Background shell tasks are not visible to the mod; that gap is known and logged nowhere else.
+async function unsafeReason($: EngineInterface, cwd: string): Promise<string> {
+  const dirty = await dirtyFiles($, cwd)
+  if (!dirty) return 'git status failed'
+  if (dirty.length) return `${plural(dirty.length, 'file')} not committed`
+  try {
+    const agents = (await $.agent.list()) as unknown as unknown[]
+    if (agents.length) return `${plural(agents.length, 'subagent')} running`
+  } catch (err) {
+    await log($, `agent.list failed, treated as none: ${String(err)}`)
+  }
+  return ''
+}
+
+// Stops the running turn and waits (5 s at most) for its turn.complete. False when the turn is still running.
+async function abortTurn($: EngineInterface): Promise<boolean> {
+  if (!turnRunning) return true
+  try {
+    await $.turn.abort({ turnId } as never)
+  } catch (err) {
+    await log($, `turn.abort failed: ${String(err)}`)
+  }
+  for (let k = 0; k < 50 && turnRunning; k += 1) await $.clock.sleep(100)
+  if (turnRunning) await log($, 'turn did not report complete after abort')
+  return !turnRunning
+}
+
+// The automatic path at OFFER_AT: wait for a safe point, stop the agent, write the handoff from there.
+async function autoStart($: EngineInterface) {
+  if (busy || starting || handed || off) return
+  starting = true
+  try {
+    const cwd = await $.session.cwd()
+    const why = await unsafeReason($, cwd)
+    const tokens = (await $.session.usage()).context.tokens ?? 0
+    if (why) {
+      if (why !== lastWhy) {
+        lastWhy = why
+        await log($, `waiting for a safe point: ${why}`)
+      }
+      if (tokens >= HARD_AT) {
+        // No safe point and the window is near: write the handoff only. The agent is not stopped and nothing is cleared.
+        handed = true
+        await log($, `no safe point at ${short(tokens)} (${why}); handoff only`)
+        void run($).catch(() => undefined)
+      }
+      return
+    }
+    lastWhy = ''
+    // Not armed yet: if the abort does not land, the next poll tries again.
+    if (!(await abortTurn($))) return
+    handed = true
+    const again = await unsafeReason($, cwd)
+    if (again) {
+      await log($, `stopped the agent, then: ${again}; handoff only`)
+      void run($).catch(() => undefined)
+      return
+    }
+    await log($, `safe point at ${short(tokens)}: agent stopped`)
+    void run($, true).catch(() => undefined)
+  } finally {
+    starting = false
+  }
+}
+
+// /clear in this chat, then the handoff as the first message of the clean one.
+async function clearAndResume($: EngineInterface, cwd: string) {
+  // The handoff takes tens of seconds. A message typed meanwhile starts a turn the handoff does not know about.
+  const why = turnRunning ? 'a new turn started while the handoff was written' : await unsafeReason($, cwd)
+  if (why) {
+    await note($, `Stopped, not cleared: ${why}. The handoff is saved. Commit, then /clear and paste it.`)
+    await log($, `not cleared: ${why}`)
+    return
+  }
+  const text = handoffText
+  await log($, 'clearing and resuming')
+  await $.command.run({ command: 'clear', args: '' } as never)
+  sid = await $.session.id().catch(() => sid)
+  await $.clock.sleep(1500)
+  await $.prompt.submit({ text } as never)
+  await setPanel($, null)
+  await log($, 'handoff sent into the cleared chat')
 }
 
 async function note($: EngineInterface, text: string) {
@@ -537,18 +639,31 @@ async function checkOffer($: EngineInterface) {
     void run($).catch(() => undefined)
     return
   }
-  const p = await getPanel($)
+  // A compaction or /clear brings the count down: the automatic handoff and the offer start over.
+  // The panel the automatic run left (ready or failed) goes too, or it would block the next run for good.
+  // A panel from a manual run under 190k is not touched: `handed` is only set by the automatic path.
+  const early = (await $.session.usage()).context.tokens ?? 0
+  let p = await getPanel($)
+  if (early < OFFER_AT) {
+    if (handed) {
+      handed = false
+      if (p && (p.phase === 'ready' || p.phase === 'failed')) {
+        await setPanel($, null)
+        p = null
+      }
+    }
+    if (snoozedTo > OFFER_AT) {
+      snoozedTo = OFFER_AT
+      if (sid) await $.store.set(`snooze:${sid}`, snoozedTo)
+    }
+  }
   if (p && p.phase !== 'offer') return
   // An offer asked for by Show stays until it is answered.
   if (forced && p) return
   forced = false
   const { context } = await $.session.usage()
   const tokens = context.tokens ?? 0
-  // A compaction or /clear brings the count down: the offer starts over.
-  if (tokens < OFFER_AT && snoozedTo > OFFER_AT) {
-    snoozedTo = OFFER_AT
-    if (sid) await $.store.set(`snooze:${sid}`, snoozedTo)
-  }
+
   if (hidden) {
     // Hidden only hides the offer band. The automatic handoff at OFFER_AT still runs,
     // so the chat never reaches the compact limit without one.
@@ -556,16 +671,17 @@ async function checkOffer($: EngineInterface) {
       await setPanel($, null)
       return
     }
-    if (tokens >= snoozedTo && sid && (await $.store.get('autorun').catch(() => undefined)) !== false) void run($).catch(() => undefined)
+    if (tokens >= snoozedTo && sid && (await $.store.get('autorun').catch(() => undefined)) !== false) $.clock.after(0, () => void autoStart($).catch(() => undefined))
     return
   }
   if (tokens >= snoozedTo) {
     if (!p || Math.abs(p.tokens - tokens) >= 1000) {
       await setPanel($, { phase: 'offer', tokens, steps: freshSteps(), tick: 0, file: '', words: 0, error: '', note: '' })
     }
-    // The first crossing starts the handoff without a click.
+    // Crossing the line starts the automatic handoff at the next safe point, without a click.
     // Store key "autorun" = false turns that off (the tests use it to see the offer).
-    if (!p && sid && (await $.store.get('autorun').catch(() => undefined)) !== false) void run($).catch(() => undefined)
+    // Outside the hook: /clear and prompt.submit are refused inside a hook the turn waits on.
+    if (sid && (await $.store.get('autorun').catch(() => undefined)) !== false) $.clock.after(0, () => void autoStart($).catch(() => undefined))
   } else if (p) {
     await setPanel($, null)
   }
@@ -604,7 +720,6 @@ export const register: Register = on => {
     $.clock.every(3000, () => {
       void poll($).catch(() => undefined)
     })
-    await $.command.register({ name: 'handoff', description: 'Write a handoff of this chat now, then copy it or start a new chat with it' })
     try {
       await $.command.register({ name: 'refresh', description: 'Show the Refresh panel now, to move this work to a fresh chat', immediate: true })
     } catch (err) {
@@ -637,7 +752,14 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('turn.start', async ($, e, next) => {
+    turnId = (e as { turnId?: string }).turnId ?? ''
+    turnRunning = true
+    return next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
+    turnRunning = false
     if (off) return next(e)
     const result = await next(e)
     if (pending) {
@@ -654,12 +776,6 @@ export const register: Register = on => {
     await setHidden($, false)
     await showOffer($)
     return { text: 'Refresh panel shown above the prompt. Press Hide on it, or use /mods, to hide it again.' }
-  })
-
-  on('command.run', { command: 'handoff' }, async $ => {
-    if (off) return { text: 'Handoff (Refresh) is off. Turn it on with /mods.' }
-    void run($).catch(() => undefined)
-    return { text: 'Writing the handoff. Watch the panel above the prompt.' }
   })
 
   // One unfiltered hook: a typed tool matcher makes tsc recurse through the connector types.

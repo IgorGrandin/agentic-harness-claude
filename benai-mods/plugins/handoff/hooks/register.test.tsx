@@ -284,6 +284,7 @@ function rig(on: On, files: Record<string, string>, tokens: { value: number }, a
   on('tool.register', async () => ({ value: { tool: 'mcp__handoff__refresh' } }) as never)
   const clock = mock.clock(on, { now: 1_000_000 })
   on('session.id', async () => ({ value: 'sid' }) as never)
+  on('session.cwd', async () => ({ value: '/Users/test/vault' }) as never)
   on('session.usage', async () => ({ value: { context: { tokens: tokens.value, window: 1_000_000 } } }) as never)
   on('fs.exists', async ($, e) => ({ value: keyOf((e as { path: string }).path) !== undefined }) as never)
   on('fs.read', async ($, e) => ({ value: files[keyOf((e as { path: string }).path) ?? ''] ?? '' }) as never)
