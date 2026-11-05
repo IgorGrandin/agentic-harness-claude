@@ -64,7 +64,7 @@ Reporte:
 
 ## 4. Eixo Execução — o plano é executável como escrito?
 
-Comece pela parte determinística, nos dois modos, da raiz do repo: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`. Ele confere manifesto antes das fatias com SHA-base que resolve, caminho abreviado e `parent_plan:`, projeto de teste inexistente, bloco **Reuso** e discriminante por fatia, e as linhas obrigatórias da tabela de verificações. Cada BLOCK é no mínimo 🟡, citando o item e a linha; UNVERIFIED (saída 2) vai para o relatório como verificação que não rodou. Saída 0 não dispensa a leitura abaixo: o script não julga o teste vizinho, os códigos de erro declarados nem o fixture traçado.
+Comece pela parte determinística, nos dois modos, da raiz do repo: `& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`. Ele confere manifesto antes das fatias com SHA-base que resolve, caminho abreviado e `parent_plan:`, projeto de teste inexistente, bloco **Reuso** e discriminante por fatia, e as linhas obrigatórias da tabela de verificações. Cada BLOCK é no mínimo 🟡, citando o item e a linha; UNVERIFIED (saída 2) vai para o relatório como verificação que não rodou. Num plano ainda não commitado (ou alterado em relação ao `HEAD`) ele também exige a linha `ADR/Rules` e a linha `Composição:` em fatia que cita Integration ou HostSmoke; a ausência delas é BLOCK, não defeito de redação. Saída 0 não dispensa a leitura abaixo: o script não julga o teste vizinho, os códigos de erro declarados nem o fixture traçado.
 
 Onde os planos deste repo historicamente vazam:
 

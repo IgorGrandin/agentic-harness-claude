@@ -137,4 +137,4 @@ Não vote no PR (aprovar/rejeitar) por iniciativa própria — o voto é do usu�
 
 ## 8. Nunca edite o código do PR
 
-Nem para achado pequeno ("só uma mensagem", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção em pós-auditoria. Todo achado vira **item de lista para o dev ou para o Cursor executar**. O enforcement técnico em `.claude/settings.json` nega `Edit`/`Write` em `platform/**`, `services/**`, `infra/**`; não contorne via shell.
+Nem para achado pequeno ("só uma mensagem", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção em pós-auditoria. Todo achado que for corrigido (os bloqueantes, ou os que o dev mandar corrigir, §7) vira **item de lista para o dev ou para o Cursor executar**; o resto fica como resíduo registrado. O enforcement técnico em `.claude/settings.json` nega `Edit`/`Write` em `platform/**`, `services/**`, `infra/**`; não contorne via shell.

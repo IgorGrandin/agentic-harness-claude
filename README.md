@@ -15,6 +15,7 @@ O plano de construção e as decisões estão em
 | `agents/*.md` | `agents/` | Subagentes `scout`, `implementer`, `reviewer`, `verifier` e `architect_escalation` |
 | `skills/<nome>/` | `skills/<nome>/` | As 21 skills listadas em `manifest.json` |
 | `benai-mods/` | `plugins/marketplaces/benai-mods/` e chaves em `settings.json` | Os 9 mods do Claude Code como marketplace `benai-mods`, habilitados globalmente |
+| `hooks/` | `hooks/` e chave `hooks` em `settings.json` | Hook `PreCompact` (`precompact-handoff.ps1`): perto da janela de 200k o `/compact` automático é barrado uma vez e vira pedido de handoff (fail-open) |
 | `manifest.json` | — | Lista explícita do que o instalador gerencia |
 
 ## Modelos
@@ -80,7 +81,10 @@ O `scripts/verify.ps1` confere o contrato do repositório:
 
 Com `-RunTests`, roda também os testes de `tests/`:
 - os resolvers e as métricas do `/execute-ig`;
-- o instalador, num `~/.claude` temporário.
+- o instalador, num `~/.claude` temporário;
+- o hook `PreCompact`, a parada por fatia do `/execute-ig` (`check-slice-commit.ps1`), as âncoras do `check-plan.ps1` e o relatório de custo por WI (`scripts/report-wi-cost.ps1`).
+
+A oferta de Refresh do mod `handoff` abre em 150k tokens (`OFFER_AT`), com adiamento de 40k, sempre abaixo da janela de 200k. Os testes do mod rodam com `claude plugin test` e não estão no `verify.ps1`; no Windows a suíte já falhava antes desta mudança.
 
 ## Outros hosts
 

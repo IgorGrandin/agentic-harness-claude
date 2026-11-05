@@ -1,6 +1,6 @@
 # Plano: qualidade e custo do ciclo plan-task → execute-ig → revise
 
-Status: **aprovado** em 2026-11-05, com D1–D5 como recomendado. S0–S3 despachadas.
+Status: **aprovado** em 2026-11-05, com D1–D5 como recomendado. S0–S3 integradas na branch `feature/execute-cycle-quality-cost` (S4); S5 e S6 são do owner. AC5 parcialmente verificado (o runner `claude plugin test` falha no Windows também no código intocado; as asserções novas rodaram e foram vistas vermelhas). Resíduos: `Composição:` dispara com qualquer menção a Integration/HostSmoke no corpo da fatia; `sid` do mod × `session_id` do hook fica para a S5.
 Data: 2026-11-05.
 Executor previsto: subagentes Sonnet 5.5 medium, uma fatia por subagente, cada um em worktree próprio. Integração, gates e commits ficam com a sessão principal.
 
@@ -13,7 +13,7 @@ Cada WI do BrixBroker passa por 3 ou 4 ciclos de `/execute-ig` e `/revise`, e o 
 | # | Fato | Fonte |
 |---|---|---|
 | E1 | A sessão principal do `/execute-ig` roda com `claude-haiku-5-5` em quase todas as rodadas | `~/.claude/brixbroker/execute-rodadas.csv`, coluna `root_model` |
-| E2 | Uma WI gera vários planos em cadeia; por exemplo, a 3691 tem `plano_a` → `correcoes_plano_a` → `plano_b` → `b_testes_faltantes` | mesmo CSV, coluna `plan` |
+| E2 | Uma WI gera vários planos em cadeia; por exemplo, a 3691 tem `correcoes_plano_a` → `plano_b` → `b_testes_faltantes` (3 planos no CSV; o `plano_a` não está lá) | mesmo CSV, coluna `plan` |
 | E3 | O `/execute-ig` com Haiku na sessão principal responde por 33,1% do custo registrado, e o prompt médio por turno fica perto de 395k tokens | `~/.claude/metrics/tokens-by-model.csv` (236 linhas), agregado por fase, papel e modelo |
 | E4 | Das 91 sessões principais com Haiku, 81 têm prompt médio acima de 100k | mesmo CSV |
 | E5 | O Haiku 5.5 cobra 5× mais acima de 100k de prompt: leitura de cache 0,05 contra 0,01, e saída 2,50 contra 0,50. O Sonnet 5.5 cobra 0,10 e 10,00 | tabela `$prices` em `~/.claude/scripts/log-tokens.ps1`, conferida em 2026-10-22 |
