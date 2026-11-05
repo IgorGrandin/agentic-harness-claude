@@ -1,6 +1,6 @@
 # Plano: qualidade e custo do ciclo plan-task → execute-ig → revise
 
-Status: **aprovado** em 2026-11-05, com D1–D5 como recomendado. S0–S3 integradas na branch `feature/execute-cycle-quality-cost` (S4); S5 e S6 são do owner. AC5 parcialmente verificado (o runner `claude plugin test` falha no Windows também no código intocado; as asserções novas rodaram e foram vistas vermelhas). Resíduos: `Composição:` dispara com qualquer menção a Integration/HostSmoke no corpo da fatia; `sid` do mod × `session_id` do hook fica para a S5.
+Status: **revisto em 2026-11-05**: o hook `PreCompact` (D3) foi removido porque o segundo auto-compact rodava 4–6 s depois do bloqueio (`~/.claude/handoffs/handoff.log`); D2 passa a 300k e o handoff do mod abre em 190k. O texto abaixo (E9, D2, D3, AC3–AC5) descreve o desenho original. Status anterior: **aprovado** em 2026-11-05, com D1–D5 como recomendado. S0–S3 integradas na branch `feature/execute-cycle-quality-cost` (S4); S5 e S6 são do owner. AC5 parcialmente verificado (o runner `claude plugin test` falha no Windows também no código intocado; as asserções novas rodaram e foram vistas vermelhas). Resíduos: `Composição:` dispara com qualquer menção a Integration/HostSmoke no corpo da fatia; `sid` do mod × `session_id` do hook fica para a S5.
 Data: 2026-11-05.
 Executor previsto: subagentes Sonnet 5.5 medium, uma fatia por subagente, cada um em worktree próprio. Integração, gates e commits ficam com a sessão principal.
 

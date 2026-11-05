@@ -4,9 +4,9 @@ const HANDOFF = '# Handoff: Build the refresh mod\n\nContinue work in `~/vault`.
 
 for (const surface of ['desktop', 'terminal'] as const) {
   test(`offer at 150k, steps, then copy and start (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
-    let tokens = 120_000
+    let tokens = 150_000
     const files: Record<string, string> = {}
-    const store: Record<string, unknown> = {}
+    const store: Record<string, unknown> = { autorun: false }
     const runs: { argv: readonly string[]; stdin?: string }[] = []
     let forkPrompt = ''
 
@@ -73,20 +73,20 @@ for (const surface of ['desktop', 'terminal'] as const) {
     await $.session.start({ source: 'startup', cwd: '/Users/test/vault', surface, isInteractive: true } as never)
 
     let v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'no offer at 120k').toBeUndefined()
+    expect(await v.find({ key: 'refresh' }), 'no offer at 150k').toBeUndefined()
 
-    tokens = 149_999
+    tokens = 189_999
     await $.turn.complete({ answer: '' } as never)
     // checkOffer runs after the turn's answer, unawaited.
     await clock.settle()
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'no offer at 149,999').toBeUndefined()
+    expect(await v.find({ key: 'refresh' }), 'no offer at 189,999').toBeUndefined()
 
-    tokens = 150_000
+    tokens = 190_000
     await $.turn.complete({ answer: '' } as never)
     await clock.settle()
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
-    expect(await v.find({ key: 'refresh' }), 'offer at 150,000').toBeDefined()
+    expect(await v.find({ key: 'refresh' }), 'offer at 190,000').toBeDefined()
 
     await v.press({ key: 'refresh' })
     v = await $.ui.mount({ plugin: 'handoff', surface, component: 'AbovePrompt', props })
@@ -127,10 +127,10 @@ for (const surface of ['desktop', 'terminal'] as const) {
   })
 }
 
-for (const [surface, tokens] of [['desktop', 150_000], ['terminal', 150_000], ['desktop', 175_000]] as const) {
-  test(`closing a finished handoff at ${tokens} snoozes the offer under the 200k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
+for (const [surface, tokens] of [['desktop', 190_000], ['terminal', 190_000], ['desktop', 215_000]] as const) {
+  test(`closing a finished handoff at ${tokens} snoozes the offer under the 300k window (${surface})`, { timeoutMs: 30000 }, async ($, on) => {
     const files: Record<string, string> = {}
-    const store: Record<string, unknown> = {}
+    const store: Record<string, unknown> = { autorun: false }
     on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
     on('command.register', async () => ({ value: undefined }) as never)
     on('tool.register', async () => ({ value: { tool: 'mcp__handoff__refresh' } }) as never)
@@ -175,7 +175,7 @@ for (const [surface, tokens] of [['desktop', 150_000], ['terminal', 150_000], ['
     await v.press({ key: 'close' })
     const snoozedTo = store['snooze:sid'] as number
     expect(snoozedTo, 'closing stores a snooze').toBeGreaterThan(tokens - 1)
-    expect(snoozedTo, 'offer plus snooze stays under the 200k window').toBeLessThanOrEqual(190_000)
+    expect(snoozedTo, 'offer plus snooze stays under the 300k window').toBeLessThanOrEqual(290_000)
   })
 }
 

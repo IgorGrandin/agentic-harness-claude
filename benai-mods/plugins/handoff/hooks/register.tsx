@@ -6,12 +6,12 @@ import type { Panel, Step } from '../types'
 const PANEL = { plugin: 'handoff', key: 'panel' } as const
 
 // The Refresh offer opens at this many tokens. Closing a finished handoff moves it up by SNOOZE.
-// The harness sets autoCompactWindow to 200k, so chats auto-compact near that size.
-// The offer opens at 150k, and offer plus SNOOZE (190k) stays under the 200k window.
-const OFFER_AT = 150_000
+// The harness sets autoCompactWindow to 300k, so chats auto-compact near that size.
+// The handoff starts by itself at 190k, which leaves room to finish the turn and to write it.
+const OFFER_AT = 190_000
 const SNOOZE = 40_000
-// A snooze never moves the offer past this size, so it stays under the 200k window even if the handoff is closed late.
-const SNOOZE_CAP = 190_000
+// A snooze never moves the offer past this size, so it stays under the 300k window even if the handoff is closed late.
+const SNOOZE_CAP = 290_000
 const POLL_MS = 5000
 const TICK_MS = 110
 // A quick step still shows its bar filling for this long, so the rows read one by one.
@@ -431,6 +431,18 @@ async function run($: EngineInterface) {
     await log($, `ok ${tilde(saved)} ${text.split(/\s+/).length} words in ${Math.round(writeMs / 1000)} s`)
     // The full handoff replaces the draft.
     if (draftPath) await rmf($, draftPath)
+    // A new chat opens by itself only from a clean tree (after a slice commit). Otherwise the
+    // handoff stays here and the panel warns, so half-written code is not carried over.
+    const dirty = await dirtyFiles($, cwd)
+    if (dirty && dirty.length === 0) {
+      await startNew($)
+    } else {
+      const why = dirty ? `${plural(dirty.length, 'file')} not committed` : 'git status failed'
+      const tokens = (await $.session.usage()).context.tokens ?? 0
+      const hot = tokens >= SNOOZE_CAP - 30_000 ? 'WARNING: close to the compact limit. ' : ''
+      await note($, `${hot}Not opened: ${why}. Commit, then press Start new chat.`)
+      if (dirty?.length) await log($, `dirty ${dirty.slice(0, 20).join(' | ')}`)
+    }
   } catch (err) {
     const p = await getPanel($)
     const steps = (p?.steps ?? freshSteps()).map((s, k) => (k === running && s.status === 'run' ? { ...s, status: 'fail' as const } : s))
@@ -471,6 +483,17 @@ async function petAlive($: EngineInterface) {
     return (await $.clock.now()) - (j.at ?? 0) < 10_000
   } catch {
     return false
+  }
+}
+
+// Files with uncommitted changes in the session folder, or null when git cannot say.
+async function dirtyFiles($: EngineInterface, cwd: string): Promise<string[] | null> {
+  try {
+    const r = await $.process.run(['git', '-C', cwd, 'status', '--porcelain'])
+    if (r.exitCode !== 0) return null
+    return String(r.stdout ?? '').split(/\r?\n/).map(l => l.trimEnd()).filter(Boolean)
+  } catch {
+    return null
   }
 }
 
@@ -534,6 +557,9 @@ async function checkOffer($: EngineInterface) {
     if (!p || Math.abs(p.tokens - tokens) >= 1000) {
       await setPanel($, { phase: 'offer', tokens, steps: freshSteps(), tick: 0, file: '', words: 0, error: '', note: '' })
     }
+    // The first crossing starts the handoff without a click.
+    // Store key "autorun" = false turns that off (the tests use it to see the offer).
+    if (!p && sid && (await $.store.get('autorun').catch(() => undefined)) !== false) void run($).catch(() => undefined)
   } else if (p) {
     await setPanel($, null)
   }
