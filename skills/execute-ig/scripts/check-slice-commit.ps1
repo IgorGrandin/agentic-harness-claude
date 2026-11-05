@@ -127,6 +127,8 @@ try {
             # Real trailers carry the frontmatter todo id (e.g. f6-modulo-smoke) while the heading is "### F6 - ...":
             # also try the todo's own "B1:" label and the id's first segment.
             $candidates = @($id)
+            $rawId = ($trailers['Execute-Slice'] -replace '(?i)^\s*fatia\s+', '').Trim()
+            if ($rawId -ne $id) { $candidates += $rawId }
             $idx = -1
             for ($k = 0; $k -lt $plan.Count; $k++) { if ($plan[$k] -match ('^\s*-\s*id:\s*"?' + [regex]::Escape($id) + '"?\s*$')) { $idx = $k; break } }
             if ($idx -ge 0) {

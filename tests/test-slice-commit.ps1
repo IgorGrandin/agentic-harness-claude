@@ -39,6 +39,10 @@ try {
     $r=Run-Msg 'todo-id-no-visto.msg' 'todo-id.plan.md'
     Require ($r.Exit -eq 1 -and (Has $r.Result 3 'BLOCK' '*ModuloTests.CasoZ*')) "Discriminant of a slice named by todo id was not enforced: exit $($r.Exit) $(Show $r)"
 
+    # Plans whose headings are "### S6 - ..." and whose trailer is "S6".
+    $r=Run-Msg 's-heading-visto.msg' 's-heading.plan.md'
+    Require ($r.Exit -eq 0) "Slice S<n> did not resolve to a '### S<n>' heading: exit $($r.Exit) $(Show $r)"
+
     # Violations, one per condition.
     $r=Run-Msg 'no-plan-trailer.msg'
     Require ($r.Exit -eq 1 -and (Has $r.Result 1 'BLOCK' '*Execute-Plan*')) "Missing Execute-Plan not blocked: exit $($r.Exit) $(Show $r)"
