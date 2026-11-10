@@ -5,10 +5,10 @@ import type { Panel, Step } from '../types'
 // One key for the whole band: offer, steps, buttons.
 const PANEL = { plugin: 'handoff', key: 'panel' } as const
 
-// The Refresh offer opens at this many tokens. Closing a finished handoff moves it up by SNOOZE.
-// The harness sets autoCompactWindow to 300k, so chats auto-compact near that size.
-// The handoff starts by itself at 230k: a slice starts near 90k of fixed context and needs about 140k to reach its commit (the first safe point).
-const OFFER_AT = 230_000
+// The automatic offer and the automatic handoff + /clear are OFF (infinite threshold): the cost analysis of 2026-11-09
+// showed a net saving of single-digit percent against lost context. The harness keeps autoCompactWindow at 300k.
+// Only /refresh, the refresh tool and Cache Clock open the handoff now. To re-enable, set this to 230_000.
+const OFFER_AT = Number.POSITIVE_INFINITY
 const SNOOZE = 40_000
 // A snooze never moves the offer past this size, so it stays under the 300k window even if the handoff is closed late.
 const SNOOZE_CAP = 290_000
@@ -738,7 +738,7 @@ export const register: Register = on => {
       inputSchema: { type: 'object', properties: {} },
     })
     const saved = await $.store.get(`snooze:${sid}`)
-    if (typeof saved === 'number') snoozedTo = saved
+    if (typeof saved === 'number' && Number.isFinite(OFFER_AT)) snoozedTo = saved
     try {
       const last = (await $.store.get(`last:${sid}`)) as { path?: string } | undefined
       if (last?.path && (await $.fs.exists(last.path))) {
