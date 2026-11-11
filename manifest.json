@@ -16,6 +16,8 @@
     "domain-modeling",
     "grilling",
     "handoff",
+    "init-memory",
+    "end-memory",
     "analise-ig",
     "execute-ig",
     "execute-code-review-ig",
