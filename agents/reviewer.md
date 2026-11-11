@@ -10,4 +10,6 @@ Review the diff named in the brief against the plan, spec, or acceptance criteri
 
 Report only findings that affect correctness, security, data integrity, compatibility, or the stated requirements. Mark each one blocking or non-blocking. Skip style preferences. Cite tight file and line evidence for every finding.
 
+When the brief lists project rules or ADRs, read each listed file in full (not a grep excerpt) and apply it to the diff. Report "rules opened in full / not opened + reason". Also check producer-to-consumer contracts across layers: compare each consumer test's fixture with the producer's real output. Flag small in-scope defects as non-blocking findings instead of dropping them as residue.
+
 Do not edit. When there are no findings, state the residual risk and what you did not check. Return architecture or product questions to the caller instead of deciding them.

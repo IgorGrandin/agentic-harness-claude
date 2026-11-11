@@ -94,7 +94,9 @@ No backend, mesmo desenho — respeitando o **gatilho condicional** do `Integrat
 
 Aplique a rubrica de `docs/contexts/code-audit-mode.md` — não recrie outra. Em resumo: cobre o previsto? há escopo extra não aprovado? ADRs vigentes respeitadas? rules da área seguidas? testes adequados? há sincronização reversa spec ← código?
 
-**"Rules da área" não é você adivinhando de memória:** abra `.cursor/rules/005-documentation-context-hierarchy.mdc`, deixe o mapa dela despachar pelas áreas que o diff toca, e **abra as rules que ela indicar**. O dev recebe metade delas automaticamente pelos `globs`; **para você não chega nenhuma**. Rule não aberta é rule não checada, e chutar produz resposta plausível — pior que nenhuma. O mesmo vale para os ADRs: liste `docs/adr/` e abra os que a área tocada envolve, em vez de confiar na linha-resumo do `CLAUDE.md` §8.
+**"Rules da área" não é você adivinhando de memória:** abra `.cursor/rules/005-documentation-context-hierarchy.mdc`, deixe o mapa dela despachar pelas áreas que o diff toca, e **abra as rules que ela indicar**. O dev recebe metade delas automaticamente pelos `globs`; **para você não chega nenhuma**. Rule não aberta é rule não checada, e chutar produz resposta plausível — pior que nenhuma.
+
+**Abrir é ler inteira.** `grep`/`awk`/`sed` de trecho não conta como abrir (nas rodadas do PR 2113 foi assim, e `lc-dialog` contra a `044` e `$any` contra a `070` só apareceram quando as rules foram lidas por inteiro). Você calcula a lista pelo mapa da `005` e a entrega ao `reviewer` e aos scouts com os caminhos exatos. O veredicto traz "rules abertas por inteiro / não abertas + motivo"; "não abri" só vale com o motivo de a área não ser tocada pelo diff. O mesmo vale para os ADRs: liste `docs/adr/` e abra os que a área tocada envolve, em vez de confiar na linha-resumo do `CLAUDE.md` §8.
 
 **Antes de chamar algo de violação de convenção, conte os irmãos.** Nome, sufixo ou padrão só é desvio se os pares **não** fizerem igual — e isso se mede abrindo os pares. Em 2026-08-14 acusei um método de prometer um lock inexistente; havia 11 irmãos com o mesmo sufixo e nenhum com lock, porque ali ele significa leitura rastreada. O achado errado virou correção e entrou no código.
 
@@ -104,9 +106,27 @@ Mais as perguntas que suíte verde não responde (critérios em `060` §"Desenho
 - **Algum teste novo é vácuo?**
 - **O que foi chamado de "opcional" é mesmo opcional?** O que o autor precisou fazer para o próprio fix funcionar não é opcional; se o padrão existe em arquivos irmãos, o default é espelhar — o ônus é dele para argumentar por que os irmãos são seguros.
 
-### Resíduo decidido não é achado
+### Cobertura do PR inteiro — o que a revisão por tema não pega
 
-Antes de reportar, faça diff contra o registro canônico de resíduos (tabela "Resíduos e decisões" do build-log do passo, seção de status da ADR do lote) e contra o que já foi decidido em revisões anteriores deste mesmo PR. Resíduo com decisão registrada **não volta como achado** — só reabre com evidência nova, citada. Sem ela, a menção certa é "resíduo X segue como decidido".
+Auditar só por tema (RLS, authz, segurança, testes removidos) cobre o eixo "estrutura e segurança" e deixa de fora o eixo "a feature cumpre os ACs". Os dois são obrigatórios. Antes do veredicto:
+
+1. **Matriz AC por AC.** Para cada AC da spec: o código que o cumpre (`arquivo:linha`) e o teste que o prova. AC sem um dos dois é achado. Não aceite "é de outro plano" sem a linha abaixo.
+2. **Contrato entre planos e camadas.** Se o PR integra vários planos (P1…Pn) ou camadas, liste tudo o que um plano diz que "entrega o dado" ou "é de tela/de outro plano" e aponte o **consumidor real** no código. Compare o fixture do teste do consumidor com a **saída real** do produtor: spec que usa entrada que o produtor nunca gera passa e prova nada (caso do PR 2113: o sanitizador emite `data-remote-src`/`data-cid`, o spec do frontend usava `src`).
+3. **Estado do pipeline da iteração atual** antes de qualquer outra coisa: build, o que falhou, o que foi pulado (ex.: HostSmoke) e se entrou código depois do último verde completo. Registre também o que já foi para ambiente compartilhado (migrations aplicadas não se editam).
+4. **Despache scouts por fronteira de dados, não só por tema:** "o que a camada A emite, o que a camada B consome, o fixture de B é a saída real de A?".
+
+### Classificação de tudo que não vira bloqueante
+
+"Resíduo" sozinho esconde decisões. Todo achado que você não põe como bloqueante recebe **uma** destas classes no veredicto:
+
+| Classe | Exemplo | Destino |
+|---|---|---|
+| Correção pequena, dentro do escopo do PR | `$any`, comentário errado, `lc-dialog` contra a rule, teste faltando | **Entra no plano de correção por padrão.** Só sai com adiamento registrado pelo dev, com o motivo. |
+| Decisão do dono | token sem expiração, prefixo S3, SNS sem assinatura | Lista de decisões para o dono. Não entra no plano. |
+| Trabalho novo / fora do escopo | smoke e ativação, retenção de tabela, editor de texto | WI nova. Não entra no plano. |
+| Não verificado | rota ou hub que a revisão não abriu | Verifique antes de classificar. Se não abriu, é lacuna, não resíduo. |
+
+**"Resíduo" só existe com decisão registrada de quem tem autoridade** (o dev ou o dono do PR), na tabela "Resíduos e decisões" do build-log ou na seção de status da ADR. O revisor não rebaixa item para resíduo por conta própria. Resíduo com decisão registrada **não volta como achado**; só reabre com evidência nova, citada ("resíduo X segue como decidido"). Item que você mesmo rebaixou numa rodada anterior, sem decisão registrada, **volta**.
 
 ## 5. Separe o objetivo do caminho
 
@@ -129,7 +149,7 @@ Separe sempre **qualidade do código** de **conformidade de processo**. Um PR po
 **Você propõe, o usuário decide**. Apresente o veredicto e ofereça as opções reais (reverter o trecho estrutural / formalizar via ADR / aceitar com ressalvas / adiar). Só depois do aval:
 
 - **Comentar no PR** com `azure-devops:repo_pull_request_thread_write` (`action: "create"`, `content`, `status: "Active"`; para comentário ancorado em linha, `filePath` + `rightFileStartLine`), no formato do §6 — endereçado ao dev, em português, direto e sem hostilidade. Deixe explícito o que está bloqueado e o que ele pode tocar enquanto isso. Se os gates não vieram, inclua no comentário o **bloco de comandos derivado** (§3) em vez da cobrança genérica — e, na primeira vez com cada dev, apresente o termo "gate de pronto" apontando para a `110`, para o vocabulário se espalhar em vez de ser presumido.
-- **Plano de correção**, se o usuário pedir: artefato em `.cursor/plans/<slug>-correcoes.plan.md`, nunca código. Leva só os achados **bloqueantes**, ou os não bloqueantes que o dev mandar corrigir; o resto fica registrado como resíduo com a decisão. **Aplique a skill `plan-for-cursor`** antes de entregar — os passes de verificação e a seção que os registra, inclusive o passe 6 (ADRs e rules da área) — e rode o `check-plan.ps1` (`& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`, na raiz do repo): BLOCK se corrige no plano antes de entregar.
+- **Plano de correção**, se o usuário pedir: artefato em `.cursor/plans/<slug>-correcoes.plan.md`, nunca código. Leva os achados **bloqueantes** e os não bloqueantes da classe "correção pequena, dentro do escopo" (§4), a menos que o dev registre o adiamento; decisões do dono e trabalho novo saem em listas separadas, não no plano. Resíduo só com decisão registrada. **Aplique a skill `plan-for-cursor`** antes de entregar — os passes de verificação e a seção que os registra, inclusive o passe 6 (ADRs e rules da área) — e rode o `check-plan.ps1` (`& (Join-Path $env:USERPROFILE '.claude/skills/execute-ig/scripts/check-plan.ps1') -PlanPath <plano>`, na raiz do repo): BLOCK se corrige no plano antes de entregar.
 - **Proposta de ADR**, se a mudança merecer uma e não tiver: não crie sozinho — aplique o critério de "quando oferecer ADR" da skill `domain-modeling` (difícil de reverter + surpreendente sem contexto + trade-off real) e proponha.
 - **Registro na memória de sessão** quando a decisão ficar pendente, para a próxima sessão começar do saldo e não do zero.
 

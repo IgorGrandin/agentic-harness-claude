@@ -120,7 +120,7 @@ Use o vocabulário já definido em `code-audit-mode.md`: **conforme** / **confor
 
 ## 4. Se correção for necessária
 
-Desenhe um plano novo — artefato, nunca código — só com os achados que valem plano (**bloqueantes**, ou não bloqueantes que o dev mandar corrigir; veja a regra mais abaixo) e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/execute-ig` de novo.
+Desenhe um plano novo — artefato, nunca código — só com os achados que valem plano (**bloqueantes** e não bloqueantes pequenos dentro do escopo, a menos que o dev registre o adiamento; decisão do dono e trabalho novo saem em lista separada; veja a regra mais abaixo) e salve em `.cursor/plans/<slug>-correcoes.plan.md` (mesma convenção de nome já usada no repo, ex. `adr-0016_sh2_pool_reset_startup_guard.plan.md`), para o Cursor rodar via `/execute-ig` de novo.
 
 **Antes de entregar o plano:**
 
@@ -130,7 +130,7 @@ Desenhe um plano novo — artefato, nunca código — só com os achados que val
 
 A skill `plan-for-cursor` existe porque planos meus já saíram com passo impossível de executar (porta inexistente), teste rotulado com o que não prova, e gate somado por precaução.
 
-**Nunca edite o código diretamente**, nem para achados pequenos ("só uma mensagem de erro", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção mesmo em pós-auditoria (`never-edit-product-code.md`). Só achado **bloqueante**, ou não bloqueante que o dev mandar corrigir, vira item do plano de correção para o Cursor executar. O resto vai para a tabela "Resíduos e decisões" do build-log, com a decisão registrada (adiado, aceito, encaminhado) — é o que mantém a próxima passada começando do saldo.
+**Nunca edite o código diretamente**, nem para achados pequenos ("só uma mensagem de erro", "só uma string", "fix trivial") — regra do owner de 2026-07-09, sem exceção mesmo em pós-auditoria (`never-edit-product-code.md`). Achado **bloqueante**, ou não bloqueante pequeno e dentro do escopo, vira item do plano de correção para o Cursor executar, salvo adiamento registrado pelo dev. Só vai para a tabela "Resíduos e decisões" do build-log o que tiver decisão registrada de quem tem autoridade (adiado, aceito, encaminhado); decisão do dono e trabalho novo vão para lista própria, não viram resíduo por rebaixamento do revisor — é o que mantém a próxima passada começando do saldo.
 
 ## 5. Se aprovado
 
