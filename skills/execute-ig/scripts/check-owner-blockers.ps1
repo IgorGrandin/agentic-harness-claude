@@ -5,6 +5,12 @@ param(
     [int]$DeployPipelineId = 139,
     [string]$DeployTarget = 'dev2',
     [string]$DeployRunsJson,
+    [int]$GatePipelineId = 158,
+    [int]$PrNumber,
+    [string]$GateRunsJson,
+    [string]$GateTimelineJson,
+    [string]$AzOrg = 'https://dev.azure.com/confitecDevOps',
+    [string]$AzProject = 'brixbroker',
     [switch]$NoFetch,
     [switch]$AsJson
 )
@@ -15,7 +21,8 @@ param(
 # 2 = no BLOCK but a check could not run or the script failed (UNVERIFIED, item 0
 # for a failure). WARN never changes the exit.
 # -DeployRunsJson replaces the Azure DevOps query (test seam): a JSON array shaped
-# like `az pipelines runs list` output.
+# like `az pipelines runs list` output. -GateRunsJson and -GateTimelineJson do the same
+# for the PR gate (pipeline 158) runs and the timeline of its newest run.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -55,6 +62,16 @@ function Test-JustifiedDeep([string[]]$Lines) {
     }
     $false
 }
+function Get-AzJson([string[]]$AzArgs) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $raw = & az @AzArgs -o json 2>$null
+        if ($LASTEXITCODE -ne 0) { return $null }
+        return ($raw -join "`n") | ConvertFrom-Json
+    } catch { return $null }
+    finally { $ErrorActionPreference = $previous }
+}
 function Get-Prop($Object, [string]$Name) {
     if ($null -eq $Object) { return $null }
     $p = $Object.PSObject.Properties[$Name]
@@ -85,6 +102,14 @@ try {
     if ($ancestor -eq 1 -and $baseFresh) {
         $behind = (Invoke-Git @('rev-list', '--count', "HEAD..$Base")).Lines[0]
         Add-Finding 10 'WARN' '' 0 "HEAD is $behind commit(s) behind $Base. Merge it and let CI run again before review."
+        # Dry run of the merge (git >= 2.38): conflicts are listed before the dev finds them in the PR.
+        $mt = Invoke-Git @('merge-tree', '--write-tree', '--name-only', '--no-messages', 'HEAD', $Base) -AllowFail
+        if ($mt.Code -eq 1) {
+            $conflicted = @($mt.Lines | Select-Object -Skip 1 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+            $hint = if (@($conflicted | Where-Object { $_ -match 'migrations\.lock$' }).Count) { ' migrations.lock: keep every line from both sides (the architecture test compares the set, not the order).' } else { '' }
+            Add-Finding 10 'WARN' '' 0 "Merging $Base into HEAD conflicts in: $($conflicted -join ', ').$hint"
+        }
+        elseif ($mt.Code -gt 1) { Add-Finding 10 'UNVERIFIED' '' 0 "git merge-tree could not simulate the merge with $Base (exit $($mt.Code))." }
     }
     elseif ($ancestor -gt 1) { throw "git merge-base --is-ancestor failed with exit $ancestor" }
     $mb = (Invoke-Git @('merge-base', $Base, 'HEAD')).Lines[0]
@@ -342,6 +367,76 @@ try {
         }
         if ($branchRuns -gt 0 -and $targetedRuns -eq 0) {
             Add-Finding 4 'UNVERIFIED' '' 0 "Runs of pipeline $DeployPipelineId exist for this branch, but none reports templateParameters.deploymentTarget."
+        }
+    }
+
+    # Item 10 - the PR gate (pipeline 158) must have run green over the last iteration.
+    # Skipped silently when the branch has no PR (the delegation to 158 then lapses, see /execute-ig step 10).
+    $branchName = @((Invoke-Git @('rev-parse', '--abbrev-ref', 'HEAD') -AllowFail).Lines)[0]
+    $gateRuns = $null; $prNo = $PrNumber; $gateLookupFailed = $false
+    if ($GateRunsJson) { $parsedGate = Get-Content -Raw -Encoding UTF8 -LiteralPath $GateRunsJson | ConvertFrom-Json; $gateRuns = @($parsedGate); if (-not $prNo) { $prNo = -1 } }
+    elseif (-not $NoFetch -and ($prNo -or ($branchName -and $branchName -ne 'HEAD'))) {
+        if (-not $prNo) {
+            $prs = Get-AzJson @('repos', 'pr', 'list', '--organization', $AzOrg, '--project', $AzProject, '--source-branch', $branchName, '--status', 'active')
+            if ($null -eq $prs) { $gateLookupFailed = $true } elseif (@($prs).Count -gt 0) { $prNo = [int](@($prs)[0].codeReviewId) }
+        }
+        if ($prNo -gt 0) {
+            $gateRuns = Get-AzJson @('pipelines', 'runs', 'list', '--organization', $AzOrg, '--project', $AzProject, '--pipeline-ids', "$GatePipelineId", '--branch', "refs/pull/$prNo/merge", '--top', '20')
+            if ($null -eq $gateRuns) { $gateLookupFailed = $true }
+        }
+    }
+    if ($gateLookupFailed) { Add-Finding 10 'UNVERIFIED' '' 0 "Could not read the PR or the runs of pipeline $GatePipelineId (az login?). Gate freshness not checked." }
+    elseif ($prNo -and $null -ne $gateRuns) {
+        $ordered = @($gateRuns | Where-Object { $null -ne $_ } | Sort-Object { [int](Get-Prop $_ 'id') } -Descending)
+        $docsOnly = '(^|/)(docs|backlog|\.cursor)/|\.md$'
+        $headOf = {
+            param($run)
+            $sha = [string](Get-Prop $run 'sourceVersion')
+            $r = Invoke-Git @('rev-parse', '--verify', '--quiet', "$sha^2") -AllowFail
+            if ($r.Code -eq 0 -and $r.Lines.Count) { $r.Lines[0] } else { $null }
+        }
+        $since = {
+            param($head)
+            $n = [int]@((Invoke-Git @('rev-list', '--count', "$head..HEAD")).Lines)[0]
+            if ($n -eq 0) { return $null }
+            $files = @((Invoke-Git @('diff', '--name-only', "$head..HEAD")).Lines | Where-Object { $_ -and $_ -notmatch $docsOnly })
+            [pscustomobject]@{ Count = $n; Code = $files }
+        }
+        if ($ordered.Count -eq 0) {
+            Add-Finding 10 'WARN' '' 0 "Pipeline $GatePipelineId has no run on refs/pull/$prNo/merge. Push the branch and let it run before review."
+        } else {
+            $latest = $ordered[0]; $id = Get-Prop $latest 'id'; $result = [string](Get-Prop $latest 'result'); $status = [string](Get-Prop $latest 'status')
+            if ($status -and $status -ne 'completed') { Add-Finding 10 'WARN' '' 0 "Run $id of pipeline $GatePipelineId is still $status; wait for it before review." }
+            $head = & $headOf $latest
+            if ($null -eq $head) { Add-Finding 10 'UNVERIFIED' '' 0 "Run $id covers a merge commit that is not available locally; cannot tell which iteration it validated." }
+            else {
+                $after = & $since $head
+                if ($after) {
+                    $codeNote = if ($after.Code.Count) { "code changed since: $((@($after.Code) | Select-Object -First 5) -join ', ')" } else { 'only docs changed since' }
+                    Add-Finding 10 'WARN' '' 0 "The newest run of pipeline $GatePipelineId ($id, $result) validated $($head.Substring(0,9)); $($after.Count) commit(s) came after it ($codeNote). Push and wait for a green run over HEAD."
+                }
+            }
+            if ($status -eq 'completed' -and $result -ne 'succeeded') {
+                $green = $ordered | Where-Object { [string](Get-Prop $_ 'result') -eq 'succeeded' } | Select-Object -First 1
+                $greenNote = 'no green run on this PR'
+                if ($green) {
+                    $gh = & $headOf $green
+                    $gs = if ($gh) { & $since $gh } else { $null }
+                    $greenNote = "last green run $(Get-Prop $green 'id')"
+                    if ($gs -and $gs.Code.Count) { $greenNote += " is $($gs.Count) commit(s) behind HEAD with code changed after it" }
+                    elseif ($gs) { $greenNote += ' is behind HEAD only by docs' }
+                }
+                Add-Finding 10 'WARN' '' 0 "Run $id of pipeline $GatePipelineId finished $result; $greenNote. A red run is fixed and pushed again."
+            }
+            if ($status -eq 'completed') {
+                $timeline = if ($GateTimelineJson) { Get-Content -Raw -Encoding UTF8 -LiteralPath $GateTimelineJson | ConvertFrom-Json }
+                            else { Get-AzJson @('devops', 'invoke', '--organization', $AzOrg, '--area', 'build', '--resource', 'timeline', '--route-parameters', "project=$AzProject", "buildId=$id", '--api-version', '7.1') }
+                if ($null -eq $timeline) { Add-Finding 10 'UNVERIFIED' '' 0 "Could not read the timeline of run $id; skipped HostSmoke not checked." }
+                else {
+                    $skipped = @($timeline.records | Where-Object { $_.type -eq 'Task' -and $_.name -match 'HostSmoke' -and $_.result -eq 'skipped' } | ForEach-Object { $_.name })
+                    if ($skipped.Count) { Add-Finding 10 'WARN' '' 0 "Run $id skipped HostSmoke task(s): $($skipped -join ', '). The gate did not prove them." }
+                }
+            }
         }
     }
 } catch {

@@ -177,6 +177,8 @@ The commit body is the slice's durable evidence, so a later session can review a
 - the slice's implementation, review, and focused-check minutes;
 - an `Afirmações:` section. Every factual sentence about the behavior delivered goes there, one per line, ending in `— prova: <test|grep|command>`. A sentence without proof leaves the body. A body that states nothing writes `Afirmações: nenhuma`. The script reads this section, so keep the heading literal.
 
+A `Decisão D<n>:` line that departs from the text of the spec or of an acceptance criterion says so with the word `diverge` and the criterion (`diverge do critério 12`): the evidence block lists those apart so the owner ratifies or rejects them in the PR. The dev still decides; this only makes the departure visible.
+
 The body may carry a `Decisão D<n>:` line for a recorded decision and a `Fatias pendentes:` list of the slices still to do; the script exempts both from its gap-marker check. Anything else that reads as a gap (`lacuna`, `pendente`, `fica para`, `follow-up`, `TODO`, and similar) fails it.
 
 It ends with three trailers: `Execute-Plan: <plan path>`, `Execute-Base: <run base SHA>`, and `Execute-Slice: <slice ID>`. Steps 5, 6, and 8 read the evidence of every slice from these bodies, not from memory.
@@ -297,6 +299,14 @@ Write the report at the resolved `ReportPath`, using exactly the template from `
 - **Slice table:** add the per-slice table from [references/metrics.md](references/metrics.md), built from the slice commit bodies for slices done in an earlier session.
 - **Delegated suites:** one line per suite, `⏭️ não rodado — provado pelo Gate de PR Backend (pipeline 158); gatilho N teria disparado`. Without it `/revise` treats the suite as forgotten. Delegated is not proven: say in the report that the delivery is ready only with a green 158 run over the PR's last iteration.
 
+Then render the PR evidence block, next to the report, from the slice commit bodies and the gate manifest:
+
+```powershell
+& (Join-Path $skillRoot 'scripts/render-evidence-block.ps1') -PlanPath <plan> -GateManifest <manifest> -Out <ReportPath without .md>-evidence.md
+```
+
+Exit 1 means the tree is dirty or the manifest belongs to another HEAD: fix that and render again; never hand over a refused block. The block names HEAD, the labelled traceability and mutants, the boundaries the plan declares, the decisions (those that diverge from the spec text or from a criterion listed apart), the deviations, and the claims with their proof. It carries no judgment of its own: a reviewer re-checks its HEAD against the PR head and treats every line as a claim to confirm, not as proof.
+
 ## 9. Metrics
 
 Append the `rodadas.csv` line that `execute.md` §7 defines. Then append the detailed row with `scripts/append-metrics.ps1`, following [references/metrics.md](references/metrics.md).
@@ -307,6 +317,7 @@ Record blocked or interrupted runs too. Leave token counts blank when the host d
 
 Tell the dev:
 - the report path, commit SHA, and gate status;
+- the evidence block path (step 8), to paste in the PR description. Any commit after the block's HEAD makes it stale: render it again;
 - the slice outcomes, correction rounds, and deviations;
 - the time spent per stage;
 - every WARN of the owner blockers trap's last run, verbatim, including item 10 with how many commits `origin/master` is ahead.

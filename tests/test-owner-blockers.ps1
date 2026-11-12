@@ -8,9 +8,10 @@ $temp=Join-Path ([IO.Path]::GetTempPath()) "owner-blockers-$([Guid]::NewGuid().T
 $repo=Join-Path $temp 'repo'
 function G { $previous=$ErrorActionPreference; $ErrorActionPreference='Continue'; try { $out=& git -C $repo @args 2>&1; if($LASTEXITCODE -ne 0){throw "git $args failed: $out"}; $out } finally { $ErrorActionPreference=$previous } }
 function Put([string]$Path,[string]$Text){ $full=Join-Path $repo $Path; New-Item -ItemType Directory -Force -Path (Split-Path $full) | Out-Null; [IO.File]::WriteAllText($full,$Text) }
-function Run-Check([string]$RunsFile){
+function Run-Check([string]$RunsFile,[string[]]$Extra=@()){
     $a=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$check,'-RepoRoot',$repo,'-Base','master','-NoFetch','-AsJson')
     if($RunsFile){$a+=@('-DeployRunsJson',$RunsFile)}
+    $a+=$Extra
     $out=& powershell @a
     [pscustomobject]@{Exit=$LASTEXITCODE; Result=(($out -join "`n") | ConvertFrom-Json)}
 }
@@ -160,6 +161,37 @@ try {
     $stale=Run-Check $null
     $behind=@($stale.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Severity -eq 'WARN' -and $_.Message -like '*1 commit(s) behind*' })
     Require ($stale.Exit -eq 0 -and $behind.Count -eq 1) "Item 10: branch behind master did not warn with the commit count: exit $($stale.Exit)"
+
+    # Item 10 - dry run of the merge: a conflict in migrations.lock is named, with the hint.
+    G checkout -q master; Put 'platform/backend/migrations.lock' "a`nmaster-line`n"; G add -A; G commit -q -m lock-master
+    G checkout -q feature/clean; G reset -q --hard master~1
+    Put 'platform/backend/migrations.lock' "a`nbranch-line`n"; G add -A; G commit -q -m lock-branch
+    $conf=Run-Check $null
+    Require (@($conf.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*conflicts in*migrations.lock*keep every line*' }).Count -eq 1) "Item 10: merge conflict in migrations.lock not reported: $($conf.Result.Findings | ForEach-Object { $_.Message })"
+
+    # Item 10 - PR gate freshness (pipeline 158) from recorded runs.
+    G checkout -q master; G checkout -q -b feature/gate
+    Put 'platform/backend/src/Svc.cs' "class Svc {}`n"; G add -A; G commit -q -m code-a
+    $headA=(G rev-parse HEAD).Trim()
+    G checkout -q -b tmp-merge master; G merge -q --no-ff feature/gate -m merge-a
+    $mergeA=(G rev-parse HEAD).Trim()
+    G checkout -q feature/gate
+    Put 'platform/backend/src/Svc.cs' "class Svc { void M() {} }`n"; G add -A; G commit -q -m code-b
+    $gruns=Join-Path $temp 'gate-runs.json'
+    @(
+        @{id=20;result='succeeded';status='completed';sourceVersion=$mergeA},
+        @{id=21;result='failed';status='completed';sourceVersion=$mergeA}
+    ) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $gruns
+    $gtl=Join-Path $temp 'gate-timeline.json'
+    @{records=@(@{type='Task';name='Broker.HostSmoke.Tests';result='skipped'},@{type='Task';name='Unit';result='succeeded'})} | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $gtl
+    $gate=Run-Check $null @('-GateRunsJson',$gruns,'-GateTimelineJson',$gtl)
+    $gm=@($gate.Result.Findings | Where-Object { $_.Item -eq 10 } | ForEach-Object { $_.Message })
+    Require (@($gm | Where-Object { $_ -like '*1 commit(s) came after it*code changed since: platform/backend/src/Svc.cs*' }).Count -eq 1) "Item 10: code after the last gate run not reported: $($gm -join ' | ')"
+    Require (@($gm | Where-Object { $_ -like '*Run 21*finished failed*last green run 20*code changed after it*' }).Count -eq 1) "Item 10: failed run with older green not reported: $($gm -join ' | ')"
+    Require (@($gm | Where-Object { $_ -like '*skipped HostSmoke*Broker.HostSmoke.Tests*' }).Count -eq 1) "Item 10: skipped HostSmoke not reported: $($gm -join ' | ')"
+    G reset -q --hard $headA
+    $fresh=Run-Check $null @('-GateRunsJson',$gruns)
+    Require (@($fresh.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*came after it*' }).Count -eq 0) 'Item 10: HEAD equal to the validated head still reported commits after the run'
 
     # Hook: denies edits to generated type files, allows everything else.
     $hook=Join-Path $root 'skills/execute-ig/scripts/block-generated-api-edit.ps1'
