@@ -15,7 +15,7 @@ param(
     [switch]$AsJson
 )
 
-# Deterministic part of the owner's recurring blockers list (CLAUDE.local.md).
+# Deterministic part of the owner's recurring blockers list (references/owner-blockers.md).
 # Compares the working tree (tracked and untracked) with merge-base(Base, HEAD).
 # Item numbers match the list. Exit 0 = clean, 1 = at least one BLOCK,
 # 2 = no BLOCK but a check could not run or the script failed (UNVERIFIED, item 0

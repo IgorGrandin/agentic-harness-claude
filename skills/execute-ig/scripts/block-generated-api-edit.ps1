@@ -1,7 +1,7 @@
 #requires -Version 5.1
 # PreToolUse hook (Edit|Write|MultiEdit|NotebookEdit): denies hand edits to
 # generated OpenAPI type files (item 3 of the owner's blockers list in
-# CLAUDE.local.md). The generator runs through the shell, which this hook
+# references/owner-blockers.md). The generator runs through the shell, which this hook
 # does not match, so `npm run gen:broker-api` keeps working.
 
 $ErrorActionPreference = 'Stop'

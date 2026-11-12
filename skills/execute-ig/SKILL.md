@@ -229,7 +229,7 @@ First run the deterministic part of the owner's blockers list from the repositor
 
 Send the integrated diff to the `reviewer` subagent once, in fresh context. The integrated diff is `git diff <run base>` (step 0), which spans every slice commit of the run, including those of an earlier session, plus any uncommitted change; `git diff` alone shows only the uncommitted part. Take the traceability table, the artifact search terms, and the deviations from the slice commit bodies. Brief it with:
 - `.cursor/commands/execute-code-review.md`, covering the Standards and Spec axes;
-- the owner's recurring blockers list in the repository's `CLAUDE.local.md`, when present, with the check's WARN findings: check the diff against each item the touched area reaches, and report a violation as a Standards finding citing the item number;
+- the owner's recurring blockers list (`references/owner-blockers.md` in this skill; hand the reviewer its absolute path, since it reads it on demand), with the check's WARN findings: check the diff against each item the touched area reaches, and report a violation as a Standards finding citing the item number;
 - the plan, its coverage matrix, and the test traceability table;
 - the instruction to check the table against the plan, not the diff: every plan test ID needs a row, and each row's assertion must observe its obligation;
 - the instruction to derive missing behavior scenarios from the spec, not only from the named tests;
