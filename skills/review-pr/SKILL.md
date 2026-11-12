@@ -54,9 +54,16 @@ Se a descrição do PR trouxer o bloco gerado pelo `/execute-ig` (primeira linha
 1. **Valide antes de usar.** O `head` do marcador tem de ser o commit de origem atual da PR. Outro SHA = bloco velho: trate como ausente e registre "bloco desatualizado" no veredicto.
 2. **Reexecute um `[visto]`.** Escolha o mutante ou vermelho de uma fronteira do bloco e reproduza-o (na branch, em worktree). Se não reproduzir, todo `[visto]` do bloco cai para `[raciocinado]` e a revisão volta a ser completa.
 3. **Concentre-se no que o bloco não prova:** (a) cada item de "Fronteiras" — abra o código do produtor e confira que ele emite o que o consumidor lê, e que o fixture do teste é a saída real (o caso do PR 2113); (b) "Decisões que divergem" — liste-as no veredicto como decisões para o owner ratificar ou rejeitar, sem barrá-las por serem decisões do dev; (c) hunks do diff que nenhuma linha de rastreabilidade menciona; (d) o estado do gate da iteração atual: rode `check-owner-blockers.ps1 -PrNumber <N>` (scripts do `execute-ig`) na branch e leve os WARN para o §4.3 abaixo.
-4. **Rules e ADRs por amostragem.** Com bloco válido, abra por inteiro a `110`, as rules das áreas ligadas às fronteiras e as das duas áreas com mais linhas no diff; as demais ficam "não abertas — amostragem, bloco válido" no veredicto. Sem bloco válido, vale a regra completa do §4.
-5. **Scouts só por lacuna.** Nenhum por padrão; despache um por pergunta que o bloco deixou aberta (§3, "Delegue a leitura"), no máximo 4.
-6. **Uma passada de Opus, opcional.** Quando o diff tiver fronteira produtor→consumidor ou de concorrência, despache **uma vez** o `reviewer` com `model: "opus"` e effort médio, só com os hunks das fronteiras, o fixture e o código do produtor, perguntando "o consumidor lê algo que o produtor nunca emite? a trava impede a corrida?". Registre no veredicto se ela achou algo que a sua leitura não achou: é o dado que decide se essa passada continua nesta skill.
+Rules, scouts e a passada de Opus seguem o orçamento abaixo, que vale com ou sem bloco.
+
+### Orçamento da revisão — vale sempre, com ou sem bloco
+
+Medido na PR 2113: este orçamento pegou os bloqueios de produtor→consumidor e de gate por cerca de 2M, onde a varredura por tema passava de 3,8M. Ele é o padrão; só o usuário pede mais ("varredura completa").
+
+1. **Rules e ADRs por amostragem.** Abra por inteiro a `110`, as rules das áreas ligadas às fronteiras (ou, sem bloco, às que o diff mais toca) e as das duas áreas com mais linhas no diff. As demais ficam "não abertas — amostragem" no veredicto, dizendo que achados dessas áreas podem estar subnotificados. A regra completa do §4 só roda a pedido.
+2. **Scouts só por lacuna, no máximo 4.** Nenhum por tema: um por pergunta que a sua leitura deixou aberta (§3, "Delegue a leitura"). Passou de 4, pare e reporte.
+3. **Uma passada de Opus.** Quando o diff tiver fronteira produtor→consumidor ou de concorrência, despache **uma vez** o `reviewer` com `model: "opus"` e effort médio, só com os hunks das fronteiras, o fixture e o código do produtor, perguntando "o consumidor lê algo que o produtor nunca emite? a trava impede a corrida?". Não repita depois da correção. Registre no veredicto se ela achou algo que a sua leitura não achou: é o dado que decide se essa passada continua nesta skill.
+4. **Estado do gate sempre.** Com a branch num worktree, rode `check-owner-blockers.ps1 -PrNumber <N>` (scripts do `execute-ig`) e leve os WARN para o §4.3.
 
 ## 3. Auditar contra a realidade, não contra a descrição
 
