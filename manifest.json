@@ -32,7 +32,8 @@
     "spec-frontend",
     "spec-task",
     "systematic-debugging",
-    "takeover"
+    "takeover",
+    "teach"
   ],
   "mods": {
     "source": "benai-mods",
