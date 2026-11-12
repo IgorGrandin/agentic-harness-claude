@@ -235,6 +235,8 @@ Send the integrated diff to the `reviewer` subagent once, in fresh context. The 
 - the instruction to derive missing behavior scenarios from the spec, not only from the named tests;
 - the list of new artifacts with the search terms recorded in the slice commits, and the instruction to search the repository, outside the diff, for an existing equivalent of each: a duplicate of existing code is a Standards finding, and a plan **reuse** or **extend** decision that the diff did not follow is a Spec finding.
 
+- the plan's `## Fronteiras` list, with two instructions per item: (a) producer→consumer and external-input boundaries — the test fixture must be the producer's real output (a call to the producer or a captured output), and the reviewer opens the producer code to confirm it emits every attribute/field the consumer reads; a hand-written shape the producer never emits is a Spec finding; (b) concurrency boundaries — the slice commit's `Mutante:` line must show the lock/guard removed and the test red; a concurrency test with no such mutant is a Spec finding. When the plan declares no `## Fronteiras`, the reviewer derives the boundaries from the diff and reports that the plan lacked them.
+
 Require the full list of rules the Standards axis opened, always including `110`.
 
 Fix accepted findings in the main session, or return them to the slice's implementer, then re-review only the affected part. Do not treat a gate that has not run yet as a finding.

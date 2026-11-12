@@ -47,6 +47,17 @@ Antes de cobrar qualquer coisa, confira **o que o pipeline já cobre**: exigir d
 - **Se estiverem lá:** leia e trate exatamente como o `/revise` trata o relatório — ponto de partida, não fonte de verdade. Cruze contra o diff real. Desconfie especificamente da seção de desvios/"opcional" (ver §4).
 - **Se faltarem:** **prossiga com a auditoria assim mesmo** e registre a ausência como item do veredicto. Nunca devolva "não dá para revisar sem os gates": a auditoria de aderência a rules, ADR e escopo não depende de suíte verde. Não fique esperando o dev. E não se limite a cobrar — **derive a lista exata de comandos deste PR** (§3, "Derivar do diff a lista exata de gates a exigir") e entregue-a pronta no comentário, para o pedido ser específico em vez de genérico.
 
+### Bloco de evidência da entrega — revisão diferencial
+
+Se a descrição do PR trouxer o bloco gerado pelo `/execute-ig` (primeira linha `<!-- execute-evidence head=<sha> plan=<plano> -->`), a revisão passa a ser **diferencial**: o bloco diz o que o dev já provou, e o seu trabalho é o que ele não cobre. O bloco é **afirmação a conferir, nunca prova**.
+
+1. **Valide antes de usar.** O `head` do marcador tem de ser o commit de origem atual da PR. Outro SHA = bloco velho: trate como ausente e registre "bloco desatualizado" no veredicto.
+2. **Reexecute um `[visto]`.** Escolha o mutante ou vermelho de uma fronteira do bloco e reproduza-o (na branch, em worktree). Se não reproduzir, todo `[visto]` do bloco cai para `[raciocinado]` e a revisão volta a ser completa.
+3. **Concentre-se no que o bloco não prova:** (a) cada item de "Fronteiras" — abra o código do produtor e confira que ele emite o que o consumidor lê, e que o fixture do teste é a saída real (o caso do PR 2113); (b) "Decisões que divergem" — liste-as no veredicto como decisões para o owner ratificar ou rejeitar, sem barrá-las por serem decisões do dev; (c) hunks do diff que nenhuma linha de rastreabilidade menciona; (d) o estado do gate da iteração atual: rode `check-owner-blockers.ps1 -PrNumber <N>` (scripts do `execute-ig`) na branch e leve os WARN para o §4.3 abaixo.
+4. **Rules e ADRs por amostragem.** Com bloco válido, abra por inteiro a `110`, as rules das áreas ligadas às fronteiras e as das duas áreas com mais linhas no diff; as demais ficam "não abertas — amostragem, bloco válido" no veredicto. Sem bloco válido, vale a regra completa do §4.
+5. **Scouts só por lacuna.** Nenhum por padrão; despache um por pergunta que o bloco deixou aberta (§3, "Delegue a leitura"), no máximo 4.
+6. **Uma passada de Opus, opcional.** Quando o diff tiver fronteira produtor→consumidor ou de concorrência, despache **uma vez** o `reviewer` com `model: "opus"` e effort médio, só com os hunks das fronteiras, o fixture e o código do produtor, perguntando "o consumidor lê algo que o produtor nunca emite? a trava impede a corrida?". Registre no veredicto se ela achou algo que a sua leitura não achou: é o dado que decide se essa passada continua nesta skill.
+
 ## 3. Auditar contra a realidade, não contra a descrição
 
 Liste os arquivos tocados com `azure-devops:repo_pull_request` (`action: "get"`, `includeChangedFiles: true`) — isso dá **a lista, não o diff**. O conteúdo real sai de duas fontes, nesta ordem:

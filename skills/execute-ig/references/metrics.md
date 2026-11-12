@@ -26,6 +26,8 @@ Field rules:
 - **`slice_models`:** compact JSON mapping slice IDs to the model and effort actually used. Example: `{"S1":{"model":"sonnet","effort":"medium"},"S2":{"model":"opus","effort":"high"}}`.
 - **Token counts:** integers only when the host exposes them; blank means unavailable. Never substitute estimates.
 
+**Cost per stage (outside the CSV).** The host does not hand tokens to the skill, but the transcripts hold them. `python scripts/skill-cost.py --since <date> --match <project>` prints, per skill (`plan-task`, `execute-ig`, `revise`, `review-pr`), sessions and cost in Sonnet-input equivalents (cache read x0.1, cache write x1.25, output x5; Haiku weighted 1/3, an unverified assumption), subagents included. Run it when comparing flow changes (for example before and after the evidence block) and compare means per session, not totals. The CSV schema stays as is.
+
 The Markdown report follows the template in `.cursor/commands/execute.md` step 5. Add one row per slice with:
 - slice ID, owner (`main` or `implementer`), write-set, model/effort, and the slice's commit SHA;
 - implementation, review, and focused-check time;
