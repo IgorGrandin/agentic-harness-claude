@@ -69,7 +69,7 @@ Pasta de trabalho `<mockup>` = `tmp/mockup/wi-<id>-<slug>/<AAAA-MM-DD>/`. Antes 
 
 **Login — resolva antes de capturar, nunca na tela do Keycloak:**
 1. `$cap auth --url <app> --checar` → `"valida": true` (exit 0): capture.
-2. Inválida (exit 2): `$cap auth --url <app> --sem-interativo`. O script usa, nesta ordem, `HARNESS_LOGIN_USER`/`HARNESS_LOGIN_PASSWORD`, `--realm-json platform/backend/src/Apps/Insurtech.AppHost/keycloak/realms/<realm>.json --usuario <username>` (realm e usuário cujo perfil enxerga a tela: `corretoras-br` para o broker-web, `admin-produto-br` para o admin-web) e a credencial de teste que o dev salvou por origem em `~/.claude/brixbroker/captura/auth/credenciais-dev.json` (só app local).
+2. Inválida (exit 2): `$cap auth --url <app> --sem-interativo`. O script usa, nesta ordem, `HARNESS_LOGIN_USER`/`HARNESS_LOGIN_PASSWORD`, `--realm-json platform/backend/src/Apps/Insurtech.AppHost/keycloak/realms/<realm>.json --usuario <username>` (realm e usuário cujo perfil enxerga a tela: `corretoras-br` para o broker-web, `admin-produto-br` para o admin-web) e a credencial de teste que o dev salvou por origem em `~/.claude/brixbroker/captura/auth/credenciais-dev.json` (só app local; hoje `broker-web` com `corretor.dev` e `admin-web` com `operador.dev`).
 3. Falhou (senha recusada, sem senha em texto no realm, Keycloak pediu troca de senha/OTP): escale ao dev com a mensagem do script; ele pode entrar uma vez pela janela (`$cap auth --url <app>`, sem `--sem-interativo`) ou salvar a credencial de teste no arquivo acima. Você nunca escreve a senha em arquivo, relatório, log ou prompt, nunca lê `credenciais-dev.json` e nunca cria usuário.
 
 **Capturar** sempre com `--sem-interativo`:
