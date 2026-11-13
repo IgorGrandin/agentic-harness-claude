@@ -7,6 +7,10 @@ disable-model-invocation: true
 
 Ajuda o usuário a especificar uma task **para um desenvolvedor implementar por conta própria** — diferente de um `.cursor/plans/*.plan.md`, que é prescritivo passo-a-passo para o Cursor executar. Aqui a spec descreve **o quê** e **por quê**, com critério de aceite testável; o **como** fica com o dev. Ver ADR-0039 (`docs/adr/0039-team-scaling-task-spec-and-review-workflow.md` no repo do projeto).
 
+## Modo do projeto
+
+Sem `.cursor/commands/execute.md` na raiz, o repositório está em **modo local**: não há Azure Boards. Siga `references/project-modes.md` da skill `plan-task`, seção `/spec-task`: o ID é o próximo livre em `backlog/tasks/` e o arquivo é a única fonte. Os passos de Work Item e WIQL abaixo valem só no BrixBroker.
+
 ## 0. Como conduzir a conversa (disciplina da skill `grilling`)
 
 Levantar o conteúdo (passo 1) e resolver conflitos de arquitetura (passo 2) segue a mesma disciplina da skill `grilling`, aplicada ao design da task em vez de a um plano de código:

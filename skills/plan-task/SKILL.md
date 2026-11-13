@@ -11,6 +11,12 @@ Transforma um Work Item em **plano executável pelo Cursor**. Entra um número; 
 
 ---
 
+## 0. Modo do projeto
+
+Se existe `.cursor/commands/execute.md` na raiz, é o **modo BrixBroker** e o resto desta skill vale como escrita. Em qualquer outro repositório git é o **modo local**: sem Azure Boards, `CLAUDE.md` obrigatório nem `.cursor/commands/`; siga `references/project-modes.md`, seção `/plan-task`, que diz o que muda (task em `backlog/tasks/`, plano em `backlog/plans/` ou `.cursor/plans/`, decisões só na task). Fora de repositório git, pare e diga qual pasta abrir.
+
+---
+
 ## 1. Ler a WI inteira — descrição não é o pedido todo
 
 Org `confitecDevOps`, projeto `brixbroker`.

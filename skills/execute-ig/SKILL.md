@@ -7,9 +7,15 @@ disable-model-invocation: true
 
 # Execute an approved plan
 
+## Project mode
+
+Detect it before anything else. If `.cursor/commands/execute.md` exists at the repository root, this is **BrixBroker mode** and everything below applies as written. Any other git repository is **local mode**: follow `references/project-modes.md` of the `plan-task` skill (`~/.claude/skills/plan-task/references/project-modes.md`), section `/execute-ig`, which says what is skipped and what replaces it. Outside a git repository, stop and tell the dev which folder to open.
+
 ## Authority
 
-Write product code only when the project instructions loaded in this session authorize `/execute-ig` to implement, from the repository's `CLAUDE.md` or the dev's personal `CLAUDE.local.md`. Without it, stop before any edit and tell the dev. Even with it:
+**Local mode:** the invocation itself authorizes implementing the selected plan, approved and committed. No `CLAUDE.md` or `CLAUDE.local.md` is required, and it never authorizes push, PR, publication or deploy.
+
+**BrixBroker mode:** write product code only when the project instructions loaded in this session authorize `/execute-ig` to implement, from the repository's `CLAUDE.md` or the dev's personal `CLAUDE.local.md`. Without it, stop before any edit and tell the dev. Even with it:
 - the plan must be approved and committed under `.cursor/plans/`;
 - the plan is the scope ceiling. Anything it does not order is not implemented "in passing".
 
