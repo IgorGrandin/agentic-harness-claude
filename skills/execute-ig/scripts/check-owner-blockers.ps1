@@ -215,15 +215,40 @@ try {
             if ($p -match '^(docs|backlog)/.+\.md$' -and $a.Text -match '(?i)%TEMP%|AppData[\\/]Local[\\/]Temp') {
                 Add-Finding 9 'WARN' $p $a.Line 'Local temp path in docs. Attach the evidence to the WI or commit it under docs/releases/.'
             }
-            # Item 12 - native form controls in feature templates.
-            if ($p -match $featureHtmlPattern -and $a.Text -match '<(input|select|textarea)\b') {
-                Add-Finding 12 'WARN' $p $a.Line "Native <$($Matches[1])> in a feature template. Use the broker-* component; point out the gap if one is missing."
+            # Item 12 - native form controls, buttons and Material spinners in feature templates.
+            if ($p -match $featureHtmlPattern -and $a.Text -match '<(input|select|textarea|button|mat-spinner|mat-progress-spinner)\b') {
+                Add-Finding 12 'WARN' $p $a.Line "Native or Material <$($Matches[1])> in a feature template. Use the broker-* component; point out the gap if one is missing."
+            }
+            # Item 21 - $any() silences the type checker in a template (PR 2113); `as any` in app code.
+            if ($p -match '^platform/frontend/' -and $p -match '\.(html|ts)$' -and $p -notmatch '\.spec\.ts$' -and $p -notmatch '/generated/') {
+                if ($a.Text -match '\$any\s*\(') {
+                    Add-Finding 21 'BLOCK' $p $a.Line '$any() in a template or component. Type the handler (e.g. $event as typed in the component method) instead of casting away the type.'
+                }
+                elseif ($p -match '\.ts$' -and $a.Text -match '\bas\s+any\b' -and $a.Text -notmatch '^\s*(//|\*)') {
+                    Add-Finding 21 'WARN' $p $a.Line '`as any` in app code. Type it, or justify it in a comment.'
+                }
+            }
+            # Item 22 - a new modal uses broker-dialog directly (rule 044), not lc-dialog.
+            if ($p -match '^platform/frontend/.+\.html$' -and $a.Text -match '<lc-dialog\b') {
+                Add-Finding 22 'WARN' $p $a.Line 'lc-dialog in new markup. A new modal uses broker-dialog directly (rule 044).'
+            }
+            # Item 25 - UI tests do not read computed CSS in jsdom.
+            if ($p -match '^platform/frontend/.+\.spec\.ts$' -and $a.Text -match '\bgetComputedStyle\s*\(') {
+                Add-Finding 25 'WARN' $p $a.Line 'getComputedStyle in a jsdom test. Assert the class or attribute, and measure the layout in a real browser.'
+            }
+            # Item 2 - !important in a shared lib reaches every app that consumes it (PR 1776).
+            if ($p -match $sharedPattern -and $p -match '\.scss$' -and $a.Text -match '!important') {
+                Add-Finding 2 'WARN' $p $a.Line '!important in a shared style. It reaches every app and control; scope it to the screen.'
             }
             if ($p -match '^platform/frontend/.+\.scss$') {
                 # Item 13 - fixed hex colors outside a var() fallback.
                 $code = ($a.Text -replace '//.*$', '') -replace 'var\(\s*--[\w-]+\s*,\s*#[0-9a-fA-F]{3,8}\s*\)', ''
                 if ($code -match '#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b') {
                     Add-Finding 13 'WARN' $p $a.Line 'Fixed hex color. Use var(--md-*, #fallback).'
+                }
+                # Item 24 - positional selectors break when the markup order changes (PR 1972).
+                if ($a.Text -match ':nth-(child|of-type|last-child)\s*\(') {
+                    Add-Finding 24 'WARN' $p $a.Line 'Positional selector. It breaks when the order or markup changes; target a class instead.'
                 }
                 # Item 14 - ::ng-deep needs a written justification.
                 if ($a.Text -match '::ng-deep' -and $a.Text -notmatch '//|/\*') {

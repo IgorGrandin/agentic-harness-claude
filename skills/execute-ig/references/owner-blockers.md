@@ -1,7 +1,7 @@
 # Bloqueios recorrentes do owner nas PRs do dev
 
 Extraídos das revisões do Ricardo Stamato nas PRs 1495–1822 e na WI 3595 (levantamento de 2026-10-23), com o item 6
-ajustado ao fluxo atual. É a fonte única: os `CLAUDE.local.md` das pastas do BrixBroker só carregam a autorização de
+ajustado ao fluxo atual. Os itens 21 a 30 vêm das PRs de dev 1582–2116 (levantamento de 2026-11-13). É a fonte única: os `CLAUDE.local.md` das pastas do BrixBroker só carregam a autorização de
 implementar, e esta lista é lida sob demanda por `/execute-ig` (revisão de integração), `/revise` e
 `/execute-code-review-ig`. Os números dos itens são citados pelo script e pelas skills: não renumere.
 
@@ -10,8 +10,8 @@ e confira o diff contra cada item que a área tocada alcança.
 
 Parte da lista é checada por script, que o `/execute-ig` (passos 5 e 7) e o `/revise` rodam:
 `scripts/check-owner-blockers.ps1`. Ele **bloqueia** os itens 1, 3, 4 (migration publicada, RLS sem `FORCE`, migration
-da branch editada depois do deploy no dev2), 10 e 14, e **alerta** os itens 2, 4 (`DropColumn`/`DropTable` no `Up`), 9,
-12 e 13. Um hook no `.claude/settings.local.json` do projeto nega Edit/Write em `generated/*.types.ts` (item 3). Os
+da branch editada depois do deploy no dev2), 10, 14 e 21 (`$any`), e **alerta** os itens 2 (inclui `!important`), 4
+(`DropColumn`/`DropTable` no `Up`), 9, 12, 13, 21 (`as any`), 22, 24 e 25. Um hook no `.claude/settings.local.json` do projeto nega Edit/Write em `generated/*.types.ts` (item 3). Os
 demais itens são de julgamento: o script não os enxerga.
 
 ## Bloqueiam merge
@@ -22,7 +22,9 @@ demais itens são de julgamento: o script não os enxerga.
    cada teste removido e o motivo: nomear só o arquivo não basta.
 2. **PR de feature não muda lib compartilhada nem texto fora do escopo** (1550, 1643, 1821).
    `design-system`, `layout`, `core`, tokens e estilos globais ficam como estão. O ajuste vai
-   no SCSS da tela ou numa WI própria. Atributo ou artefato sem consumidor sai.
+   no SCSS da tela ou numa WI própria. Atributo ou artefato sem consumidor sai, inclusive dependência
+   nova no `package.json` que nada importa (2001, `@tiptap/extension-link`). Regra global com `!important`
+   ou `@media` que muda o shell alcança todos os apps (1776, 1714): escopo na tela.
 3. **`broker-api.types.ts` é gerado** (1821; citada pelo owner como rule `100`, que ainda não menciona o gerador). Suba a API, rode `npm run gen:broker-api`
    e não edite o arquivo à mão. Depois troque os tipos declarados à mão por `Schemas[...]`.
 4. **Migrations** (1689, 1772, 1822):
@@ -39,7 +41,7 @@ demais itens são de julgamento: o script não os enxerga.
 
 ## Processo e documentação
 
-6. **A decisão é do dev; o owner ratifica ou rejeita na PR** (fluxo vigente, ajustado em 2026-11-11; o texto anterior pedia aprovação prévia do owner, que não existe mais). O dev decide, registra a decisão (`D<n>`, com o porquê) e a deixa visível na PR. Decisão que diverge do texto da spec ou de um critério, ou que mexe em texto enviado ao cliente, spec, ADR, segurança ou LGPD, entra na lista "Decisões que divergem" do bloco de evidência. Escreva "decisão do dev, a ratificar pelo owner na PR"; só escreva "ratificada pelo owner" depois que ele disser isso na thread (1550, 1689, 1772, 1822).
+6. **A decisão é do dev; o owner ratifica ou rejeita na PR** (fluxo vigente, ajustado em 2026-11-11; o texto anterior pedia aprovação prévia do owner, que não existe mais). O dev decide, registra a decisão (`D<n>`, com o porquê) e a deixa visível na PR. Decisão que diverge do texto da spec ou de um critério, ou que mexe em texto enviado ao cliente, spec, ADR, segurança ou LGPD, entra na lista "Decisões que divergem" do bloco de evidência. Escreva "decisão do dev, a ratificar pelo owner na PR"; só escreva "ratificada pelo owner" depois que ele disser isso na thread (1550, 1689, 1772, 1822). Pedido relatado por terceiro não é decisão do owner (2049); "decisão do Gabriel, aguardando aval" na spec vira "aprovação do owner" (1783); a lista de decisões e a descrição da PR acompanham cada rodada (1972, 2113).
 7. **ADR** (1689, 1772, 1822; `CLAUDE.md` §8): não reescreva o texto de uma decisão do owner. O
    estado atual vai no bloco "Status — o que vale hoje", sem apêndice que se acumula.
 8. **Documentação bate com o código** (1689, 1772, 1821): ADR, spec, `scope.md` e
@@ -48,7 +50,9 @@ demais itens são de julgamento: o script não os enxerga.
    `docs/releases/…` ou colada na PR em texto. Nunca só um caminho em `%TEMP%`. Inclua a tabela
    de mutantes (vermelho visto) também da rodada de correção.
 10. **Traga o master antes de pedir revisão** (1822) e deixe o CI rodar de novo sobre o merge.
-11. Item que o owner moveu para outra WI não é tocado nesta PR (1689).
+11. Item que o owner moveu para outra WI não é tocado nesta PR (1689, 2116: "não suba mais nada nele"). Plano de ferramenta
+    ou trabalho de outra frente vai em branch separada (1776); pedido de editor ou anexo vira WI nova, não se implementa
+    aqui (2113).
 
 ## Frontend
 
@@ -79,3 +83,30 @@ demais itens são de julgamento: o script não os enxerga.
     - HostSmoke tem o caso de controle (o papel autorizado não toma 403), além do 403;
     - o que o plano promete como `[Theory]` é `[Theory]`.
 20. Resíduo criado e removido dentro da própria branch (conversor, normalizador) sai junto (1772).
+
+## Acrescentados em 2026-11-13 (PRs de dev 1582–2116)
+
+21. **Sem `$any` nem `as any`** (2113: `$any($event.target)` em `email-inbox.page.html`). Tipe o handler no componente:
+    o template passa `$event` e o método recebe o tipo certo. O script bloqueia `$any(`; `as any` só alerta.
+22. **Modal novo usa `broker-dialog` direto, não `lc-dialog`** (2113, rule `044`).
+23. **Componente existente antes de classe própria** (1972: `.bell-text-button` virou `broker-button`,
+    `.bell-spinner` virou `broker-progress-spinner`). Texto fixo de componente vai para a copy do projeto
+    (1972: `NOTIFICATION_BELL`); `aria-label` descreve o que o controle faz, sem concatenar rótulo de tela
+    (2116: "Tarefa: Parcela #N").
+24. **Seletor posicional é frágil** (1972: `nth-child` em `_notification-sheet.scss`). Use classe.
+25. **Teste de UI não lê CSS computado em jsdom** (2116: `getComputedStyle`; o próprio plano dizia para não ler).
+    Afirme classe ou atributo e meça o layout num navegador de verdade (1783: 1440/768/375, em texto na PR).
+26. **O fixture do teste do consumidor é a saída real do produtor** (2113: o spec usava `src` que o backend nunca
+    gera, e passava). Conferir o produtor faz parte da revisão, não só o teste verde.
+27. **Corpo sem o campo ou `null` nunca vira 500** (1827; 2049 cobra o mesmo nas rotas sem `.WithValidation<>`).
+    Cada rota ganha teste com o corpo sem o campo, esperando 400 com o código, e o teste tem de falhar se o
+    tratamento sair. O helper de validação é único: cópia idêntica por módulo (1827: 6 `ValidateToProblemAsync`) sai.
+    Mensagem de erro de contrato segue a rule `060` (1791: `Message` em português).
+28. **Comentário, spec e plano não contradizem o código** (2113: comentário de `CommunicationsWorkerCompositionTests`;
+    2031: comentário de teste "item pendente de outra corretora"; 2049: "continuam 501"; 2116: "A1-02" que não existe).
+    Releia os comentários que o diff tocou contra o que o código faz agora.
+29. **Defesa nova tem teste que falha sem ela** (1972: guarda do commit sem teste vácuo; 2004: `IncludeOrphans`;
+    2049: gatilho voltando ao `BackfillAsync`; 1791: 403 real, não teste de arquitetura que procura texto no fonte).
+    Mostre o vermelho ao remover a defesa, na PR, em texto (complementa o item 19).
+30. **Lógica nova sem teste não entra como "depois"** (2113: `detailLoadGeneration` e o AC 39 sem assert de
+    `LastInboundSequence` nem de não lidas; 2031: três testes do AC 25; 1972: retry de tempo real).

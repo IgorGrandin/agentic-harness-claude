@@ -67,7 +67,11 @@ try {
     Put 'platform/frontend/libs/features/x/c.spec.ts' "// touched`nit('dup', () => {});`n"
     Put $gen "export interface paths { edited: true }`n"
     Put 'docs/notes.md' "Evidence at %TEMP%\claude-handoffs\report.md`n"
-    Put 'platform/frontend/libs/design-system/src/button.scss' ".btn { padding: 0; }`n"
+    Put 'platform/frontend/libs/design-system/src/button.scss' ".btn { padding: 0 !important; }`n"
+    Put "$feat/c.html" "<input (change)=""f(`$any(`$event.target))"">`n<lc-dialog></lc-dialog>`n<button>x</button>`n"
+    Put "$feat/c.ts" "const x = y as any;`n// as any in a comment`n"
+    Put "$feat/d.spec.ts" "const s = getComputedStyle(el);`n"
+    Put "$feat/d.scss" ".a:nth-child(2) { color: var(--md-a, #fff); }`n"
     $r=Run-Check $runs
     $res=$r.Result
     Require ($r.Exit -eq 1 -and $res.Status -eq 'BLOCKED') "Violations did not block: exit $($r.Exit)"
@@ -101,6 +105,14 @@ try {
     $spaced=@($deep | Where-Object { $_.Path -like '*dir with space/s.scss' -and $_.Severity -eq 'BLOCK' } | ForEach-Object Line | Sort-Object)
     Require (($spaced -join ',') -eq '2,3')"Item 14: path with spaces or a '++' line lost its added lines (got lines '$($spaced -join ',')')"
     Require ($deep.Count -eq 4) 'Item 14: unexpected extra ::ng-deep findings'
+    Require (@($res.Findings | Where-Object { $_.Item -eq 21 -and $_.Severity -eq 'BLOCK' -and $_.Path -like '*c.html' -and $_.Line -eq 1 }).Count -eq 1) 'Item 21: $any not blocked'
+    Require (@($res.Findings | Where-Object { $_.Item -eq 21 -and $_.Severity -eq 'WARN' -and $_.Path -like '*c.ts' -and $_.Line -eq 1 }).Count -eq 1) 'Item 21: as any not warned'
+    Require (@($res.Findings | Where-Object { $_.Item -eq 21 -and $_.Path -like '*c.ts' }).Count -eq 1) 'Item 21: as any in a comment was reported'
+    Require (Has $res 22 'WARN' '*c.html') 'Item 22: lc-dialog not warned'
+    Require (@($res.Findings | Where-Object { $_.Item -eq 12 -and $_.Path -like '*c.html' -and $_.Message -like '*<button>*' }).Count -eq 1) 'Item 12: native button not warned'
+    Require (Has $res 24 'WARN' '*d.scss') 'Item 24: positional selector not warned'
+    Require (Has $res 25 'WARN' '*d.spec.ts') 'Item 25: getComputedStyle not warned'
+    Require (@($res.Findings | Where-Object { $_.Item -eq 2 -and $_.Message -like '*!important*' }).Count -eq 1) 'Item 2: !important in a shared style not warned'
 
     # A branch-only migration edited before any deploy passes; a canceled deploy only warns.
     Put "$mig/20261001_New.cs" "class New { void Up() { Sql(""ALTER TABLE s.t ENABLE ROW LEVEL SECURITY; ALTER TABLE s.t FORCE ROW LEVEL SECURITY;""); } }`n"
