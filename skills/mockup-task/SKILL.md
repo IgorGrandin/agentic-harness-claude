@@ -43,7 +43,7 @@ O custo do mockup vem de **turnos × contexto acumulado**, não do modelo: uma c
 
 | Fase | Faz | Deixa em `<mockup>/` |
 |---|---|---|
-| **A. Capturar** | §3: ambiente, login, **um `lote`** com todas as telas, estados e larguras | `capturas.md` (uma linha por captura, `faltando`, pendências de ambiente) |
+| **A. Capturar** | §2b e §3: contratos e rules da tela, ambiente, login, **um `lote`** com todas as telas, estados e larguras | `contratos.md`, `capturas.md` (uma linha por captura, `faltando`, pendências de ambiente) |
 | **B. Montar, uma por tela** | §4 de **uma** tela (e seus estados): `pecas` → `extrair` → `substituir` → `conferir`. Telas independentes rodam **em paralelo**, cada uma com seu subagente | `Decisão*.html` da tela e `tela-<nome>.md` (peças, D<n> candidatas, fidelidade, pendências) |
 | **C. Consolidar** | §5–§6: junta os `tela-*.md` em `notes.md` e `resumo.md`, publica | `notes.md`, `resumo.md`, `artefato.txt` |
 
@@ -73,6 +73,16 @@ Só o que a tela precisa, a cada rodada — não copie para cá:
 | Tokens | `libs/design-system/src/lib/theming/_tokens.scss` |
 | Componentes de feature e de layout | `libs/features/<feature>/src/lib/components/**`, `libs/layout/**` |
 | Rules de front-end | as da área, pelo mapa da `005` (`036`, `041`–`046`, `070`, `080`, `090`) |
+
+## 2b. Ler contratos e regras da tela — antes de montar
+
+O mockup parte da tela capturada, que só mostra os dados do seed. Estado de dado que o seed não tem (nulo, vários valores, lista paginada, permissão) e regra de UI da área só aparecem depois do mockup aprovado, quando o plano lê a API, e viram retrabalho e perguntas tardias (caso da 3990: vigência futura, rule 046 de criar em modal, rótulo nulo, assinantes paginados, papéis). Na fase A, **antes de qualquer pendência**, levante e escreva em `<mockup>/contratos.md`:
+
+1. **Endpoints e DTOs que a tela consome** — para cada um: rota, campos que a tela exibe, quais podem ser nulos, enums com todos os valores, paginação e teto, papel exigido para ler e para escrever. Fonte: os endpoints (`platform/backend/**/Endpoints/*.cs`) e os DTOs, nunca a memória.
+2. **Rules de UI da área** que a tela aciona (criar/editar em modal ou inline, tabela, estado vazio, erro, confirmação): o mapa da `005` aponta as rules; leia as aplicáveis.
+3. **Lista de estados de dado** que a tela precisa mostrar além do seed: um por linha, com o valor real que o contrato admite.
+
+Cada estado vira um estado do mockup ou uma pendência `P<n>` com recomendação; cada conflito entre o pedido (ou a captura) e uma rule vira pendência `P<n>` já com a rule citada. No Claude, a leitura do código é de um subagente `scout`, que devolve trechos literais com `arquivo:linha` (§ "Levantamento em volume" do `plan-for-cursor`); a thread não reabre os arquivos. Tela sem API nova nem estado de dado novo: `contratos.md` diz isso em uma linha.
 
 ## 3. Capturar a tela real — a base
 

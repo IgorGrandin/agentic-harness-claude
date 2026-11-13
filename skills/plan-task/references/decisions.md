@@ -39,7 +39,14 @@ Igual no Work Item e no espelho:
 ```
 
 Regras:
-- **A tabela é o índice;** o detalhe fica no bloco de cada decisão.
+- **A tabela é o índice;** o detalhe fica no bloco de cada decisão. **Toda decisão nova ganha a linha na tabela e o bloco, juntos, no Work Item e no espelho.** Caso (WI 3990): D14–D44 foram gravadas só como blocos, e a tabela ficou em D1–D13 até o dev apontar.
+- **Confira antes de gravar** (no espelho; vale igual para o texto enviado ao Work Item): todo `### D<n>` tem a sua linha, e toda linha da tabela tem o seu bloco. Em PowerShell, a diferença tem de sair vazia:
+  ```powershell
+  $t = Get-Content -Raw -Encoding UTF8 backlog/tasks/<id>-<slug>.md
+  $linhas = [regex]::Matches($t,'(?m)^\| (D\d+) \|').Groups | Where-Object Name -eq 1 | % Value
+  $blocos = [regex]::Matches($t,'(?m)^### (D\d+) ').Groups | Where-Object Name -eq 1 | % Value
+  Compare-Object $linhas $blocos
+  ```
 - **IDs são estáveis.** Uma decisão revista mantém o ID: atualize o bloco e acrescente ao Resumo "(revista em <data>)".
 - **Cada decisão se explica sozinha.** Escreva para quem não viu a conversa nem o plano: explique os termos do domínio, não use apelidos criados na sessão e não remeta a "conforme discutido" ou "ver plano".
 - **Releia antes de gravar.** Leia cada bloco como esse leitor. Se ele depender de um fato do plano, confira o fato no código ou na spec, para a decisão não herdar um erro do plano.

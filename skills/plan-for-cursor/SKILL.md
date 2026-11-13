@@ -216,6 +216,14 @@ Fatia que não cria nada escreve "**Reuso:** a fatia não cria artefato novo". E
 
 > Origem do passe (2026-10-23): o owner observou que as execuções criavam com frequência duplicatas do que o repo já tinha. O reuso só aparecia como "Oportunidade" opcional do `/analise-ig`, que o preflight do `/execute-ig` não avalia, e a revisão só procurava duplicação **dentro** do diff.
 
+## Levantamento em volume — scout devolve o literal, a thread não reabre
+
+Contratos de API, DTOs, endpoints e padrões de várias telas pedem dezenas de leituras. Feitas pela thread principal, elas ficam no contexto até a compactação (caso 3990: cerca de 15 leituras de backend depois dos scouts, e a sessão compactou no meio do plano). Mande o levantamento ao `scout` (um por área, em paralelo), com este pedido:
+
+- **Entrega:** um arquivo (`tmp/pipeline/wi-<id>/contratos-<area>.md`) com, para cada endpoint e DTO: rota, método, papel exigido, os campos do DTO **copiados literalmente** (tipo, nulabilidade, enums com todos os valores), paginação e teto, tudo com `arquivo:linha`. Sem opinião nem resumo que troque o texto do código.
+- **A thread** lê esse arquivo e só abre um arquivo-fonte para confirmar uma linha específica que o arquivo não traga ou que gere dúvida. Não o relê inteiro.
+- Achado que exige decisão (campo que pode ser nulo e a spec não cobre, enum com valor que a tela não trata, papel que o mockup ignora) vira pergunta ao dev **antes** de escrever o plano.
+
 ## Seção obrigatória antes das fatias: Manifesto de execução
 
 Todo plano tem um bloco `## Manifesto de execução` **antes da primeira fatia**, depois de fonte canônica, decisões e arquitetura (mesma posição que o `/plan-task` usa). O contrato é do executor: `.cursor/commands/execute.md` §pré-análise, item 3. Plano sem manifesto é 🟡 automático: o executor escreve o próprio e roda a pré-análise de novo. **O formato mora lá** (`execute.md`, linha `**Manifesto de execução:**` do modelo de relatório). Abra o arquivo e siga-o; não copie o formato para cá.
