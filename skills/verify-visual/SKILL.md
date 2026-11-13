@@ -52,7 +52,7 @@ A sessão é a do `capturar-tela.mjs`, salva fora do repo:
 
 **Claude — Playwright MCP é o motor.** Ferramentas `mcp__plugin_frontend-visual_playwright__*` (adiadas: carregue com ToolSearch `playwright`). O navegador é o Edge, headless, o mesmo da captura do mockup. Para cada largura × estado:
 - `browser_resize` → `browser_navigate` na rota → chegue ao estado (`browser_click`, `browser_snapshot` para achar o alvo);
-- **carregando / erro:** intercepte a chamada **dentro do navegador** (`browser_run_code` com `page.route(...)` atrasando ou devolvendo 500 só para a rota da API daquela tela, só contra o app local). Não deu: o item fica **não verificado** — nunca altere código, banco ou API para provocar o estado;
+- **carregando / erro:** intercepte a chamada **dentro do navegador** (`browser_run_code_unsafe` com `page.route(...)` atrasando ou devolvendo 500 só para a rota da API daquela tela, só contra o app local). Não deu: o item fica **não verificado** — nunca altere código, banco ou API para provocar o estado;
 - medições com `browser_evaluate`: `getComputedStyle` (largura, altura, `font-size`, `font-weight`, `color`, `gap`, `padding`), `querySelector` do componente dentro do contêiner certo, texto; tokens resolvidos com `getComputedStyle(document.documentElement).getPropertyValue('--md-…')`;
 - `browser_take_screenshot` → `app-<estado>-<largura>.png` em `tmp/pipeline/wi-<id>/visual/`;
 - olhe a imagem para alinhamento, sobreposição, truncamento e quebra de linha que nenhuma medição prevista pega. Pouco e recortado: cada imagem lida fica no contexto.
