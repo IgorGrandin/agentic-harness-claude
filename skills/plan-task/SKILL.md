@@ -1,6 +1,6 @@
 ---
 name: plan-task
-description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, decide com o dev tudo que ficar abaixo de 95% de certeza, registra as decisões na WI e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Quando a WI tem tela, conduz a especificação visual com a skill spec-frontend. Use quando o dev pedir "/plan-task <nº>".
+description: Lê um Work Item do Azure Boards pelo número (descrição, critérios de aceite, anexos, comentários e itens ligados), analisa o pedido contra a arquitetura vigente, decide com o dev tudo que ficar abaixo de 95% de certeza, registra as decisões na WI e produz o plano do Cursor em `.cursor/plans/*.plan.md`, commitado na branch de trabalho. Quando a WI tem tela, gera o mockup a partir da tela real com a skill mockup-task e leva as decisões para a spec com a skill spec-frontend. Use quando o dev pedir "/plan-task <nº>".
 argument-hint: "nº do Work Item do Azure Boards (ex.: 2538)"
 disable-model-invocation: true
 ---
@@ -51,7 +51,7 @@ Anexos baixados vão para o **scratchpad da sessão**, nunca para dentro do repo
 | `relations` → `ArtifactLink` (PR/Commit) | trabalho já feito nessa WI. Se houver, **pare e confirme com o dev** antes de planejar do zero |
 | comentários | vêm em **HTML**; é comum a mudança de escopo mais recente estar ali, não na descrição |
 
-**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Print de tela é referência visual; valor de design só vem do export versionado da §3b. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao dev — não planeje por cima do buraco.
+**Anexo é insumo de primeira classe.** Print de tela, planilha, PDF de spec: abra e leia. Print de tela é referência visual; valor de design só vem do mockup aprovado da §3b, levado para a spec. Se um anexo for um formato que você não consegue ler (binário proprietário, por exemplo), diga qual é e peça o conteúdo ao dev — não planeje por cima do buraco.
 
 ---
 
@@ -84,14 +84,16 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 **Detecte o sinal.** Há frontend quando aparece pelo menos um destes: anexo ou comentário com tela, componente ou mockup; descrição ou critério que fala em cor, tamanho, estilo ou layout; alguma área do §3 em `platform/frontend/**`. Sem sinal, pule esta seção. Com dúvida, pergunte ao dev uma vez.
 
-**Procure o mockup antes de perguntar.** Olhe os anexos e comentários já lidos no §1. Se achar um mockup, confirme com o dev que é o da task. Se não achar, pergunte se existe mockup do Claude Design.
+**Confirme o recorte com o dev.** Quais telas, abas e estados entram nesta task. Proponha a partir das fatias de frontend previstas. Print anexado é referência, não gabarito.
 
-**Fonte é export versionado.** A fonte visual é um export do Claude Design que esteja no git: um import datado em `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/`, ou um `.html` único no caminho que a WI indica. Confirme com `git ls-files` que o arquivo está versionado; se não estiver, peça ao dev que commite antes de seguir. Se o artefato for do próprio dev, compare o arquivo local com o HTML publicado (`Artifact read`) e pergunte ao dev se divergem. Link de artefato é ponteiro: registre-o na WI, mas não é fonte. Print é referência visual. Sem export versionado, pare a parte visual e deixe o dev decidir entre esperar o export ou seguir sem visual, registrado como decisão do §4.
+**O mockup sai da tela real, pela skill `mockup-task`.** Carregue-a e siga-a: captura da tela renderizada do app, edição só da região que a WI muda com instâncias reais de `broker-*`, conferência de fidelidade por pixel, decisões `D<n>` verificáveis num `notes.md`. O trabalho mecânico roda num subagente; esta thread lê só o `resumo.md` dele e conduz o portão do mockup (§7 da skill). As pendências do mockup são perguntas do §4, uma por vez, com recomendação.
 
-**Confirme o recorte com o dev.** Quais telas e componentes do mockup entram nesta task. Proponha a partir das fatias de frontend previstas.
+- **Quando:** a captura precisa do app de pé. Com o corte em dois planos (backend, depois telas), monte e aprove a **estrutura** do mockup aqui, antes do plano de backend, quando a tela decide campo de contrato; a captura detalhada, com os estados reais, vem no plano de telas, com as APIs do backend já na branch.
+- **Mockup legado:** import do Claude Design em `platform/frontend/_imports/claude-design/` (WIs antigas) é só leitura e referência; não gera mockup novo.
+- **Sem aprovação do mockup, o plano não é gravado.**
 
-**Aplique a skill spec-frontend** com o export versionado, o arquivo da task (§2) e o recorte. Ela devolve duas coisas:
-- a seção "Especificação visual" com a tabela de reconciliação, que entra no arquivo da task quando o dev aprovar, como no §6;
+**Aplique a skill `spec-frontend`** com o `notes.md` aprovado, os blocos `data-novo` do mockup e o arquivo da task (§2). Ela devolve:
+- a seção "Especificação visual" — todos os valores verificáveis (px, token, copy, estados) e a linha "Origem: mockup aprovado em <data> — <URL do artefato>" — que entra no arquivo da task quando o dev aprovar, como no §6. O mockup não vai para o Git: o que o plano e a verificação visual cobram está na spec;
 - os itens sem token equivalente (classe C). Eles viram decisões do §4, uma por vez, cada uma com o ID `Dn` no registro.
 
 **Regras da parte visual:**
@@ -139,8 +141,12 @@ todos:
     content: "Gate 110: <suítes que os gatilhos exigem>"
     status: pending
 isProject: false
+visual_reference: "<URL do artefato do mockup | local>"  # só quando houve mockup (§3b)
+visual_local: "tmp/mockup/wi-<id>-<slug>/<data>/original/<Tela> - Decisão.html"
 ---
 ```
+
+`visual_reference` liga a verificação visual (`/verify-visual`) no `/execute-ig`: sem ele, a tela não é conferida no navegador. `visual_local` é a pasta de trabalho de onde o mockup foi publicado, fora do Git.
 
 Corpo, na ordem:
 
@@ -150,7 +156,7 @@ Corpo, na ordem:
 3a. **Manifesto de execução** — obrigatório. O formato vem de `.cursor/commands/execute.md`, e as regras de preenchimento estão na seção "Manifesto de execução" da `plan-for-cursor`. O SHA-base é o `HEAD` na hora de commitar o plano.
 3b. **Matriz de cobertura** — montada **antes** das fatias, no formato do contrato de cobertura da `plan-for-cursor` (passe 11, `references/coverage-contract.md`): AC → comportamento → resultado esperado → fronteira de produção → teste → discriminante, mais as dimensões de risco aplicáveis e excluídas. O desafio do `reviewer` sobre a matriz faz parte do passe 11; não peça um segundo.
 3c. **Fronteiras** — seção `## Fronteiras`, uma linha por item, só o que a WI realmente atravessa: (a) **produtor → consumidor** (quem grava/emite o dado e quem o lê, com o nome do campo ou atributo que cruza; a spec pode descrever um formato que o produtor nunca emite — confira no código do produtor), (b) **concorrência** (duas operações na mesma entidade; qual trava ou guarda impede a corrida), (c) **entrada externa** (caminho, URL, HTML ou arquivo vindo de fora). Sem fronteira, escreva uma linha dizendo que não há. O `/execute-ig` copia esta lista para o bloco de evidência da PR e o revisor cobra um teste por item.
-4. **Fatias** — cada uma com arquivos e caminhos reais, portas que já existem (verificadas, passe 1 da `plan-for-cursor`) e as que o plano manda criar. Cada fatia declara também pré-requisitos, dono de escrita, write-set, contratos compartilhados, IDs de AC, checks focados, teste discriminante e se pode rodar em paralelo (contrato de cobertura §1), mais o bloco **Reuso** (passe 12 da `plan-for-cursor`): para cada artefato novo, a busca feita, o candidato encontrado e a decisão reusar/estender/criar. Faça a busca durante o §3, enquanto percorre a área — é lá que o existente aparece, e uma decisão de estender algo compartilhado pode virar pergunta do §4.
+4. **Fatias** — cada uma com arquivos e caminhos reais, portas que já existem (verificadas, passe 1 da `plan-for-cursor`) e as que o plano manda criar. Cada fatia declara também pré-requisitos, dono de escrita, write-set, contratos compartilhados, IDs de AC, checks focados, teste discriminante e se pode rodar em paralelo (contrato de cobertura §1), mais o bloco **Reuso** (passe 12 da `plan-for-cursor`): para cada artefato novo, a busca feita, o candidato encontrado e a decisão reusar/estender/criar. Faça a busca durante o §3, enquanto percorre a área — é lá que o existente aparece, e uma decisão de estender algo compartilhado pode virar pergunta do §4. **Fatia que mexe em tela** aponta para a §Especificação visual da spec (os valores) e para o mockup aprovado (referência), e lista os componentes da tabela de peças do mockup — reaproveitados com caminho e variação, novos com nome — e os estados; o executor não escolhe outros.
 5. **Testes** — por teste: a linha de produção que a asserção observa, o caminho até ela, ou o fixture delegado com propriedade + discriminante. Em cada fronteira de 3c, o fixture do teste é a **saída real do produtor** (chamada a ele, ou captura da sua saída), nunca um formato escrito à mão; o teste de concorrência nomeia o **mutante** (remover a trava/guarda) que o deixa vermelho.
 6. **Gate por gatilho** — derivado de `.cursor/rules/110-cursor-workflow.mdc` §"Gate de pronto" e `060` §"Pronto ≠ `--filter`" (**abra os dois**), dizendo qual gatilho disparou e **qual não disparou, e por quê**. Suítes delegadas ao `Gate de PR Backend` (158) aparecem como tal (`110` §"Quem prova o quê").
 7. **Verificações feitas antes de entregar este plano** — a tabela obrigatória da `plan-for-cursor`.

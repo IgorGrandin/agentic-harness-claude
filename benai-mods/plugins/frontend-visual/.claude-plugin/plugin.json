@@ -1,0 +1,8 @@
+{
+  "name": "frontend-visual",
+  "version": "0.1.0",
+  "description": "Apoio do fluxo de frontend por captura (/mockup-task e /verify-visual): bloqueia o Read inteiro de captura de tela e declara o Playwright MCP headless no Edge, ja logado pela sessao salva do capturar-tela.mjs",
+  "author": {
+    "name": "Igor Grandin"
+  }
+}

@@ -59,7 +59,7 @@ Open only what the current step needs. A resumed session (one slice) never reope
 | 2 | `execute.md` §1; `analise.md` with `modo=preflight-execute` |
 | 4 (first session) | `execute.md` §2 and §"Ciclo TDD"; `execute-tdd.md`; the plan |
 | 4 (resumed session) | the same two files, and in the plan only the pending slice's section and its rows of the coverage matrix, as `show-slice.ps1` prints them (below). Never `Read` the whole plan in a resumed session: it costs 10k+ tokens per slice and the window is spent before the first edit |
-| 5 | `execute-code-review.md`; the rules it opens, always `110` |
+| 5 | `execute-code-review.md`; the rules it opens, always `110`; with `visual_reference:` in the plan, the `verify-visual` skill (in its subagent) |
 | 6, 7 | `execute.md` §4; rules `110` and `060` |
 | 8, 9, 10 | `execute.md` §5 and §7; [references/metrics.md](references/metrics.md) |
 
@@ -246,6 +246,12 @@ Send the integrated diff to the `reviewer` subagent once, in fresh context. The 
 Require the full list of rules the Standards axis opened, always including `110`.
 
 Fix accepted findings in the main session, or return them to the slice's implementer, then re-review only the affected part. Do not treat a gate that has not run yet as a finding.
+
+**Visual check (plans with `visual_reference:` in the frontmatter).** In the same message that sends the reviewer, start the `verify-visual` skill in a `general-purpose` subagent (Claude), or run it inline on another host, with the plan path, the work folder `tmp/pipeline/wi-<id>/` and round `N` (first round: 1). It returns the path of `visual-R<N>.md`, a verdict and the count per severity; read only the findings, not the screenshots.
+- 🔴 and 🟡 `V<N>-*` findings are fixed in the main session like accepted review findings; then run round `N+1`, which starts from the previous round's status table. At most 3 rounds: what is still open after round 3 goes to the dev with the reports.
+- 🔵 findings and the "Não verificado" table are not fixed here; they go to the dev in the step 8 report, never dropped.
+- **Escalado ao dev** (app or login does not come up, mockup missing, ambiguous decision): bring it to the dev before step 6; never fix the environment, seed or realm to force a state.
+- The visual check is not the gate (invariant 1): it starts servers and a browser, never a suite. The screenshots per width and state it saves are the ones the area's rule asks to attach to the step 8 report.
 
 ## 6. Commit
 

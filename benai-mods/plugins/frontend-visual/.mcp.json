@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--headless",
+        "--isolated",
+        "--browser",
+        "msedge",
+        "--viewport-size",
+        "1440x900",
+        "--storage-state",
+        "${USERPROFILE}/.claude/brixbroker/captura/auth/mcp-storage-state.json",
+        "--init-script",
+        "${USERPROFILE}/.claude/brixbroker/captura/auth/mcp-init.js",
+        "--output-dir",
+        "${USERPROFILE}/.claude/brixbroker/captura/playwright"
+      ]
+    }
+  }
+}

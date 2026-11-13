@@ -18,6 +18,7 @@
     "handoff",
     "init-memory",
     "end-memory",
+    "mockup-task",
     "analise-ig",
     "execute-ig",
     "execute-code-review-ig",
@@ -33,7 +34,8 @@
     "spec-task",
     "systematic-debugging",
     "takeover",
-    "teach"
+    "teach",
+    "verify-visual"
   ],
   "mods": {
     "source": "benai-mods",
@@ -42,6 +44,7 @@
       "brain-dump",
       "cache-clock",
       "chat-inventory",
+      "frontend-visual",
       "handoff",
       "helper-desk",
       "mods",

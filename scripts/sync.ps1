@@ -130,7 +130,10 @@ function ConvertTo-QuotedYaml([string]$Value) {
 
 function Convert-SkillMarkdownText([string]$Text, $Adapter) {
     $out = ($Text -replace "`r`n", "`n")
-    $out = $out.Replace('.claude/skills/execute-ig', [string]$Adapter.executeScriptsRelPath)
+    # Every skill-to-skill path (.claude/skills/<skill>) points at the host's skills folder,
+    # derived from executeScriptsRelPath (<host skills dir>/execute-ig).
+    $skillsPrefix = ([string]$Adapter.executeScriptsRelPath) -replace '/execute-ig$', ''
+    $out = $out.Replace('.claude/skills/', $skillsPrefix + '/')
     if ($Adapter.rewriteSlashToDollar -eq $true) {
         $out = [regex]::Replace($out, $slashPattern, '$$$1')
     }

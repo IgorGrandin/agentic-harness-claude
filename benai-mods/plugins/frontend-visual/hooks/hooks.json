@@ -1,0 +1,17 @@
+{
+  "description": "Bloqueia o Read inteiro de captura de tela do mockup (guarda-leitura).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/guarda-leitura.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,35 +1,42 @@
 ---
 name: spec-frontend
-description: Transforma um mockup do Claude Design (export versionado no git: import datado em platform/frontend/_imports/claude-design/ ou um .html único) numa seção de spec de front-end pronta para anexar a uma task em backlog/tasks/ — extrai cores, tamanhos, espaçamentos, tipografia e comportamento, reconcilia cada valor com os tokens do design-system do projeto, normaliza equivalências exatas sozinha e leva as divergências ao dev para decidir — o que for design-system/ADR vai ao dev, que decide. Chamada pela skill plan-task quando a WI tem tela. Também serve quando o pedido mencionar mockup, Claude Design, spec visual ou de front-end, cores/tamanhos/estilos de uma task, ou reconciliar um design com o design-system.
+description: Transforma o mockup aprovado da skill mockup-task (notes.md com as decisões D<n> e os blocos data-novo da captura editada) — ou, em WI antiga, um import do Claude Design em platform/frontend/_imports/claude-design/ — numa seção de spec de front-end pronta para anexar a uma task em backlog/tasks/ — extrai cores, tamanhos, espaçamentos, tipografia e comportamento, reconcilia cada valor com os tokens do design-system do projeto, normaliza equivalências exatas sozinha e leva as divergências ao dev para decidir — o que for design-system/ADR vai ao dev, que decide. Chamada pela skill plan-task quando a WI tem tela. Também serve quando o pedido mencionar mockup, Claude Design, spec visual ou de front-end, cores/tamanhos/estilos de uma task, ou reconciliar um design com o design-system.
 ---
 
-# /spec-frontend — mockup do Claude Design → seção de spec
+# /spec-frontend — mockup aprovado → seção de spec
 
 Repositório alvo: **Broker** (raiz do seu clone; todos os caminhos abaixo são relativos a ela).
 
 ## Por que esta skill existe
 
-O Cursor implementa lendo a spec do repo. Um mockup publicado como Artifact do Claude Design é invisível para ele: a task [3227] citava o mockup só como linha de referência, e o resultado seria o Cursor herdando estilos existentes e improvisando o resto — o mockup só virando achado na auditoria, depois do código escrito.
+O executor implementa lendo a spec do repo. O mockup não está no Git (é um artefato e uma pasta em `tmp/`): a task [3227] citava o mockup só como linha de referência, e o resultado seria o executor herdando estilos existentes e improvisando o resto — o mockup só virando achado na auditoria, depois do código escrito.
 
-Esta skill fecha esse buraco: o visual vira **texto versionado no repo**, com cada valor citando um token do design-system ou um literal que você aprovou. Honra a seta `spec → código` (CLAUDE.md §3) e o ADR-0011:61 — *o artefato do Claude Design é insumo aprovado, não fonte da verdade*.
+Esta skill fecha esse buraco: o visual vira **texto versionado no repo**, com cada valor citando um token do design-system ou um literal que você aprovou. Honra a seta `spec → código` (CLAUDE.md §3) e o ADR-0011:61 — *o mockup é insumo aprovado, não fonte da verdade*.
 
 ## Entradas obrigatórias
 
-1. **Export versionado:** import datado `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/` (o export fica em `original/`), ou um `.html` único versionado no git, no caminho que a WI indica. Link e print não entram como fonte
+1. **Mockup aprovado** da skill `mockup-task`: a pasta `tmp/mockup/wi-<id>-<slug>/<data>/` com o `notes.md` (decisões `D<n>`, peças) e os HTML da Decisão em `original/`. **WI antiga:** import do Claude Design em `platform/frontend/_imports/claude-design/<slug>/<YYYY-MM-DD>/original/` — aí vale o §2b. Link e print não entram como fonte
 2. **Task alvo:** `backlog/tasks/<id>-<slug>.md` (o `/plan-task` materializa o arquivo no §2 dele)
 3. **Recorte:** quais telas/componentes do mockup interessam a esta task
 
-**Faltando qualquer um dos três, pergunte antes de ler qualquer arquivo.** O recorte é o que mais escapa e é o mais caro: sem ele você lê o mockup inteiro. No único import existente hoje, isso é `styles.css` com 1176 linhas mais ~3.400 linhas de `.jsx` — mais caro que a task que você está especificando.
+**Faltando qualquer um dos três, pergunte antes de ler qualquer arquivo.** O recorte é o que mais escapa e é o mais caro: sem ele você lê o mockup inteiro.
 
-Se o export não existe no repo ou não está versionado (`git ls-files`), **pare e peça ao dev que exporte e commite**. Você não escreve em `platform/**` (ver Guardrails).
+Você não escreve em `platform/**` (ver Guardrails).
 
 ## Procedimento
 
 ### 1. Recorte antes de leitura
 
-Nenhum arquivo do mockup é lido inteiro. Confirme com o dev quais elementos entram e trabalhe só neles.
+Nenhum arquivo do mockup é lido inteiro. Confirme com o dev quais elementos entram e trabalhe só neles. A captura editada nunca é aberta com `Read` (traz todo o CSS do app): use os comandos `pecas` e `extrair` do `capturar-tela.mjs` (skill `mockup-task`).
 
-### 2. Extrair do mockup por Grep dirigido
+### 2. Extrair do mockup
+
+**a) Mockup da `mockup-task` (padrão).** As peças reaproveitadas são instâncias reais do app: o valor delas **é** o do design-system, e vão à tabela como balde **A** com a origem da instância (`broker-select` `compact`, de `<tela doadora>`), sem medir nada. O trabalho fica em duas fontes:
+
+- as decisões `D<n>` do `notes.md` (px, token, copy, estados, ordem) — cada uma vira linha da Especificação visual;
+- os blocos `data-novo` — liste com `pecas`, leia cada um com `extrair --seletor '[data-novo="<nome>"]'` e classifique cada valor de estilo do fragmento pelos baldes do §4. É aqui que o C aparece.
+
+**b) Import do Claude Design (WI antiga).** O mockup foi desenhado do zero: todo valor precisa ser reconciliado, por Grep dirigido:
 
 ```
 # tokens que o mockup declara
@@ -88,7 +95,8 @@ A anatomia da task segue o `/plan-task` §2 e o `/spec-task` §4: 6 seções, `#
 ```markdown
 ### Especificação visual
 
-Origem: `<caminho do export versionado>`. Valores não especificados aqui
+Origem: mockup aprovado em <data> — <URL do artefato> (pasta de trabalho
+`tmp/mockup/wi-<id>-<slug>/<data>/`, fora do Git). Valores não especificados aqui
 seguem o token equivalente do design-system — não hardcodar.
 
 - **<elemento>**: altura `<v>`, padding `<v>`, raio `var(--shape-md)`,
@@ -111,13 +119,13 @@ seguem o token equivalente do design-system — não hardcodar.
 | gap do grupo | `10px` | sem escala de espaçamento | **dev (<seu nome>, <data>):** literal aceito |
 ```
 
-**d) Para `## Referências de arquitetura`** — link relativo para o export versionado (pasta datada ou `.html`).
+**d) Para `## Referências de arquitetura`** — a URL do artefato do mockup (ou, em WI antiga, o link relativo para o import versionado). É referência visual: todo valor que o plano e o `/verify-visual` cobram já está na seção (a).
 
 ### 6. Escrever na task
 
 Só **depois** que o dev aprovar a tabela do passo 4. Escreva direto no arquivo em `backlog/tasks/` — inserindo cada bloco na seção que lhe corresponde, preservando o que já existe.
 
-Se a task já tiver uma linha citando o mockup só como referência externa (o caso da 3227), **substitua-a** pelo caminho do export versionado — senão a spec fica com duas fontes visuais, uma delas inacessível ao Cursor.
+Se a task já tiver uma linha citando o mockup só como referência externa (o caso da 3227), **substitua-a** pela linha "Origem" da seção (a) — senão a spec fica com duas fontes visuais.
 
 Quando a chamada vem do `/plan-task`, esta skill não grava no Work Item. As decisões dos itens C voltam ao `/plan-task`, que as registra em lote na seção "Decisões do dev", como manda o registro de decisões.
 
@@ -127,7 +135,7 @@ Quando a chamada vem do `/plan-task`, esta skill não grava no Work Item. As dec
 - **Token do projeto vence o mockup** quando há equivalente (ADR-0011:61). O mockup vence só onde o projeto não tem resposta — e aí a decisão é do dev (layout é dele), não sua. Registre como decisão **Dn** no registro do `/plan-task`: o dev decide, e esta skill não usa rótulo de owner.
 - **"O quê", não "como".** ADR-0039:14: a spec diz o quê e por quê; o como é do dev. Valor observável (`altura 56px`, `raio --shape-full`) entra. Técnica (qual mixin, qual seletor, qual classe criar) fica fora.
 - **Rule `036`:** features não importam `@angular/material`; a API pública é `broker-*`. A seção nunca prescreve Material dentro de feature.
-- **Toda afirmação de valor cita `arquivo:linha`** da fonte — mockup ou `_tokens.scss`. Valor sem procedência não entra na spec.
+- **Toda afirmação de valor cita a procedência** — `arquivo:linha` do `_tokens.scss` ou do import antigo; na captura, o `D<n>` do `notes.md` ou o seletor do bloco (`[data-novo="…"]`, instância de `<tela>`). Valor sem procedência não entra na spec.
 - **Não sincronize spec a partir do código** (CLAUDE.md §3). Ler o `.scss` do componente serve para *citar o token certo* e medir divergência; não para deixar o estado atual do código redefinir a intenção do design.
 
 ## Economia de contexto

@@ -1,6 +1,6 @@
 # Claude Code mods
 
-Nine small add-ons for Claude Code. Each one changes what you see or adds a helper while you work.
+Ten small add-ons for Claude Code. Each one changes what you see or adds a helper while you work.
 
 ## What each mod does
 
@@ -15,6 +15,7 @@ The list is in video order. The number is the mod's number in the video.
 7. **screen-share**: `/screen-share` hides names, emails, phone numbers and money amounts on screen while you record.
 8. **replay-theater**: `/replay` steps through the file edits Claude made in the last turn, one diff at a time. This is Anthropic's sample mod from [anthropics/claude-code-playground](https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods/replay-theater), shared under the Apache 2.0 license (see its `LICENSE`). We only added `/mods` switch support.
 9. **mods**: `/mods` opens a pane to turn each mod on or off. It also finds mods you installed from any other marketplace.
+10. **frontend-visual** (not in the video): a Playwright MCP that opens the local app in headless Edge already signed in, with the session saved by the `mockup-task` capture script, for the `verify-visual` skill; and a hook that blocks reading a page capture whole (use the script's `pecas`/`extrair`).
 
 Tip: install mods with the steps below so they load in every chat. A mod that is only built inside one chat loads in that chat only.
 
@@ -32,7 +33,7 @@ To do it by hand, unzip the folder first, then type these at the Claude Code pro
    /plugin marketplace add ~/Downloads/benai-mods
    ```
 
-2. Install the mods you want, one line each. The names are the ones in the list above. To install all 9, paste this block:
+2. Install the mods you want, one line each. The names are the ones in the list above. To install all 10, paste this block:
 
    ```
    /plugin install brain-dump@benai-mods
@@ -42,6 +43,7 @@ To do it by hand, unzip the folder first, then type these at the Claude Code pro
    /plugin install reflect@benai-mods
    /plugin install chat-inventory@benai-mods
    /plugin install screen-share@benai-mods
+   /plugin install frontend-visual@benai-mods
    /plugin install replay-theater@benai-mods
    /plugin install mods@benai-mods
    ```
