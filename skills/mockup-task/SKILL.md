@@ -26,20 +26,33 @@ Aqui o mockup **parte da tela renderizada**: a captura é o app, e só a região
 |---|---|
 | `$cap auth --url <app> [--checar \| --sem-interativo]` / `--realm-json <realm> --usuario <user>` | sessão de login (credencial lida pelo script, nunca impressa; §3) |
 | `$cap capturar --url <rota> --out <pasta> --nome "<nome>" --sem-interativo [--esperar <sel>] [--antes <passos.mjs>] [--viewport 390x844]` | HTML autossuficiente + `<nome>.referencia.png` |
-| `$cap pecas --arquivo <html>` | componentes da tela (`broker-*`, `data-componente`, `data-novo`) com um seletor de cada |
-| `$cap extrair --arquivo <html> --seletor <css> [--indice N]` | só o trecho |
+| `$cap lote --manifesto <json>` | várias capturas numa chamada só (telas × estados × larguras); manifesto `{"out":"<pasta>","itens":[{"nome","url","viewport"?,"esperar"?,"antes"?}]}`; devolve uma linha por item |
+| `$cap pecas --arquivo <html> [--filtro <texto>] [--max 60]` | componentes da tela (`broker-*`, `data-componente`, `data-novo`), uma linha JSON cada, com um seletor; a última linha `// …` é só o total |
+| `$cap extrair --arquivo <html> --seletor <css> [--indice N] [--esqueleto [N]] [--max 8000]` | só o trecho; `--esqueleto` mostra só a árvore (tags e marcação) para achar o trecho certo antes de extrair inteiro |
 | `$cap substituir --arquivo <html> --seletor <css> --com <frag.html> [--modo trocar\|antes\|depois\|dentro]` | aplica um fragmento |
 | `$cap css-de --arquivo <doador.html> --para <html>` | traz o CSS de uma tela doadora |
 | `$cap screenshot --arquivo <html> --out <png> [--recorte x,y,w,h]` | imagem do mockup (inteira ou recortada) |
-| `$cap comparar --a <png> --b <png> --ignorar "x,y,w,h;…" --out <diff.png>` | percentual de pixels diferentes fora das regiões ignoradas |
+| `$cap comparar --a <png> --b <png> --ignorar "x,y,w,h;…" --out <diff.png>` | percentual de pixels diferentes fora das regiões ignoradas, e a caixa onde estão (`regiao`) |
+| `$cap conferir --arquivo <html> --ref <png> --out <pasta> [--ignorar "x,y,w,h;…"] [--limite 0.5]` | `screenshot` + `comparar` numa chamada: `{ok, percentual, regiao, mock, diff}` |
 
 **Nunca abra uma captura com `Read`.** Ela traz todo o CSS do app (centenas de KB) e fica no contexto pelo resto da sessão. No Claude, o hook `guarda-leitura` (mod `frontend-visual`) bloqueia; nos outros hosts, a regra é esta frase. Trabalhe só com `pecas`/`extrair`/`substituir`.
 
-## Quem faz o quê
+## Quem faz o quê — fases curtas, cada uma com contexto novo
 
-- **Trabalho mecânico (§3–§6):** subir/capturar, extrair e substituir, conferir, publicar. No Claude, despache um subagente (`Agent`, `subagent_type: "general-purpose"`, `model: "sonnet"`) com o id da WI, o resumo da WI já lido, o recorte e o modo (`montar` · `ajustar <pedido>` · `retomar`). Nos outros hosts, rode na própria thread.
-- **O subagente não pergunta ao dev.** Toda dúvida vira uma pendência `P<n>` com opções e recomendação no `resumo.md` (§6). Pendência que bloqueia (estender × criar componente, valor fora dos tokens, estado não definido pela WI) → para no ponto mais adiantado e devolve `status: pendências`. A que não bloqueia → segue com a recomendação, marcada `provisório`.
-- **Thread principal:** lê **só** o `resumo.md`, conduz o portão (§7) e a ida para a spec (§8). Nunca abre captura, PNG, fragmento ou HTML do mockup: o dev revisa o artefato.
+O custo do mockup vem de **turnos × contexto acumulado**, não do modelo: uma conversa longa de subagente relê tudo a cada chamada. Por isso o trabalho mecânico (§3–§6) é dividido em fases, e **cada fase é um subagente novo** que lê só o que a anterior deixou em arquivo. No Claude, a thread principal orquestra (`Agent`, `subagent_type: "general-purpose"`, `model: "sonnet"`; Haiku só depois de comparado com o Sonnet numa WI real); nos outros hosts, as mesmas fases rodam na própria thread, em sequência.
+
+| Fase | Faz | Deixa em `<mockup>/` |
+|---|---|---|
+| **A. Capturar** | §3: ambiente, login, **um `lote`** com todas as telas, estados e larguras | `capturas.md` (uma linha por captura, `faltando`, pendências de ambiente) |
+| **B. Montar, uma por tela** | §4 de **uma** tela (e seus estados): `pecas` → `extrair` → `substituir` → `conferir`. Telas independentes rodam **em paralelo**, cada uma com seu subagente | `Decisão*.html` da tela e `tela-<nome>.md` (peças, D<n> candidatas, fidelidade, pendências) |
+| **C. Consolidar** | §5–§6: junta os `tela-*.md` em `notes.md` e `resumo.md`, publica | `notes.md`, `resumo.md`, `artefato.txt` |
+
+- **Teto de turnos por subagente:** ~40 chamadas de ferramenta. Ao chegar, ele grava o que fez e o que falta em `tela-<nome>.md` e devolve `status: retomar`; a thread principal despacha **outro** subagente novo em `retomar` (lê só esse arquivo). Nunca estenda a mesma conversa.
+- **Brief de cada fase:** id da WI, o resumo da WI já lido, o recorte (telas e estados), a pasta `<mockup>/`, o modo (`montar` · `ajustar <pedido>` · `retomar`) e o limite acima. Nada de contexto da conversa do dev.
+- **Imagem só na falha:** `conferir` devolve o veredito em texto. Só abra uma imagem quando `ok` for `false`, e só `screenshot --recorte` na `regiao` devolvida, uma vez por correção.
+- **O subagente não pergunta ao dev.** Toda dúvida vira uma pendência `P<n>` com opções e recomendação (§6). Pendência que bloqueia (estender × criar componente, valor fora dos tokens, estado não definido pela WI) → para no ponto mais adiantado e devolve `status: pendências`. A que não bloqueia → segue com a recomendação, marcada `provisório`.
+- **Thread principal:** lê **só** `resumo.md` (e as linhas de retorno dos subagentes), conduz o portão (§7) e a ida para a spec (§8). Nunca abre captura, PNG, fragmento ou HTML do mockup: o dev revisa o artefato.
+- **Ajuste (`ajustar`):** só as fases B (as telas afetadas) e C, nunca A de novo, salvo captura nova pedida.
 
 ## 1. A WI exige mudança visual? — e já existe mockup?
 
@@ -72,7 +85,7 @@ Pasta de trabalho `<mockup>` = `tmp/mockup/wi-<id>-<slug>/<AAAA-MM-DD>/`. Antes 
 2. Inválida (exit 2): `$cap auth --url <app> --sem-interativo`. O script usa, nesta ordem, `HARNESS_LOGIN_USER`/`HARNESS_LOGIN_PASSWORD`, `--realm-json platform/backend/src/Apps/Insurtech.AppHost/keycloak/realms/<realm>.json --usuario <username>` (realm e usuário cujo perfil enxerga a tela: `corretoras-br` para o broker-web, `admin-produto-br` para o admin-web) e a credencial de teste que o dev salvou por origem em `~/.claude/brixbroker/captura/auth/credenciais-dev.json` (só app local; hoje `broker-web` com `corretor.dev` e `admin-web` com `operador.dev`).
 3. Falhou (senha recusada, sem senha em texto no realm, Keycloak pediu troca de senha/OTP): escale ao dev com a mensagem do script; ele pode entrar uma vez pela janela (`$cap auth --url <app>`, sem `--sem-interativo`) ou salvar a credencial de teste no arquivo acima. Você nunca escreve a senha em arquivo, relatório, log ou prompt, nunca lê `credenciais-dev.json` e nunca cria usuário.
 
-**Capturar** sempre com `--sem-interativo`:
+**Capturar** sempre com `--sem-interativo`. Liste tudo o que a WI precisa (base, estados, larguras, doadores) num manifesto em `tmp/mockup/passos/lote-<id>.json` e rode **uma vez** `$cap lote --manifesto <json>`; `capturar` avulso só para refazer uma captura. Cada item abaixo vira uma linha do manifesto:
 - **Tela que a WI altera:** `$cap capturar --url <rota> --out "<mockup>/original" --nome "<Tela> - base" --sem-interativo`.
 - **Estado** (aba, filtro, modal aberto): `--antes tmp/mockup/passos/<x>.mjs` com `export default async (page) => { … }`.
 - **Responsiva:** capture de novo com `--viewport 390x844` e `--nome "<Tela> - base - estreita"` (e 768, se a rule da área pede).
@@ -106,11 +119,10 @@ Nunca invente cor, fonte, espaçamento ou raio fora dos tokens. Valor que o tema
 **Conferir a fidelidade antes de mostrar:**
 
 ```
-$cap screenshot --arquivo "<mockup>/original/<Tela> - Decisão.html" --out tmp/mockup/conferencia/decisao.png
-$cap comparar --a "<mockup>/original/<Tela> - base.referencia.png" --b tmp/mockup/conferencia/decisao.png --ignorar "<x,y,w,h da região alterada>[;…]" --out tmp/mockup/conferencia/diff.png
+$cap conferir --arquivo "<mockup>/original/<Tela> - Decisão.html" --ref "<mockup>/original/<Tela> - base.referencia.png" --ignorar "<x,y,w,h da região alterada>[;…]" --out tmp/mockup/conferencia
 ```
 
-`percentual` acima de **0,5%** fora da região ignorada = você alterou algo que a WI não pede (ou faltou recurso). Corrija e confira de novo; não apresente antes de passar. **Olhe pouco e recortado:** o percentual é o critério; para ver a região alterada, `screenshot --recorte`, e não releia a mesma imagem.
+`ok: false` (`percentual` acima de **0,5%** fora da região ignorada) = você alterou algo que a WI não pede (ou faltou recurso). Corrija e confira de novo; não apresente antes de passar. **Olhe pouco e recortado:** o `ok` é o critério; `regiao` diz onde olhar (`screenshot --recorte` nela), e não releia a mesma imagem.
 
 ## 5. `notes.md` — as decisões verificáveis
 

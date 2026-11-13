@@ -17,8 +17,13 @@
 //        [--checar]   (só diz se a sessão salva ainda vale; não loga)
 //   node capturar-tela.mjs screenshot --arquivo <html> --out <png> [--viewport 1440x900] [--recorte x,y,w,h]
 //   node capturar-tela.mjs comparar --a <png> --b <png> --out <diff.png> [--ignorar x,y,w,h;...]
-//   node capturar-tela.mjs pecas      --arquivo <html>        (componentes da tela, com um seletor de cada)
-//   node capturar-tela.mjs extrair    --arquivo <html> --seletor <css> [--indice N] [--max 20000]
+//   node capturar-tela.mjs conferir --arquivo <html> --ref <png> --out <pasta> [--ignorar x,y,w,h;...]
+//        [--limite 0.5] [--nome <n>] [--viewport 1440x900]   (screenshot + comparar numa chamada:
+//        {ok, percentual, regiao da diferença, mock, diff}; só abra imagem quando ok=false)
+//   node capturar-tela.mjs lote --manifesto <json>   (várias capturas numa chamada; manifesto =
+//        {"out":"<pasta>","itens":[{"nome","url","viewport"?,"esperar"?,"antes"?,"out"?}]}; uma linha por item)
+//   node capturar-tela.mjs pecas      --arquivo <html> [--filtro <texto>] [--max 60]   (uma linha por componente, com um seletor)
+//   node capturar-tela.mjs extrair    --arquivo <html> --seletor <css> [--indice N] [--max 8000] [--esqueleto [N]]
 //   node capturar-tela.mjs substituir --arquivo <html> --seletor <css> --com <fragmento.html>
 //                                     [--modo trocar|antes|depois|dentro] [--indice N] [--saida <html>]
 //   node capturar-tela.mjs css-de     --arquivo <doador.html> --para <html>   (anexa o CSS do doador)
@@ -48,7 +53,7 @@
 // <data-dir>/deps. Navegador: Edge ou Chrome já instalados (sem download).
 
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -468,6 +473,28 @@ async function screenshot() {
   console.log(JSON.stringify({ png: out, ...(clip ? { recorte: clip } : {}) }));
 }
 
+// Compara duas imagens do mesmo tamanho fora das regiões ignoradas (a área que a WI muda de
+// propósito, "x,y,w,h;x,y,w,h"). Devolve a contagem, o percentual e a caixa onde as diferenças
+// se concentram, para recortar só ali em vez de olhar a tela inteira.
+function diferenca(PNG, pixelmatch, A, B, ignorar, diffPath) {
+  const regs = String(ignorar || '').split(';').filter(Boolean).map((r) => r.split(',').map(Number));
+  const mask = (img) => { for (const [x, y, w, h] of regs) for (let yy = y; yy < Math.min(y + h, img.height); yy++) for (let xx = x; xx < Math.min(x + w, img.width); xx++) { const i = (yy * img.width + xx) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 0; img.data[i + 3] = 255; } };
+  mask(A); mask(B);
+  const D = new PNG({ width: A.width, height: A.height });
+  const diff = pixelmatch(A.data, B.data, D.data, A.width, A.height, { threshold: 0.1 });
+  if (diffPath) fs.writeFileSync(String(diffPath), PNG.sync.write(D));
+  let x0 = A.width, y0 = A.height, x1 = -1, y1 = -1;
+  if (diff > 0) {
+    for (let y = 0; y < D.height; y++) for (let x = 0; x < D.width; x++) {
+      const i = (y * D.width + x) * 4; // cor de diferença do pixelmatch: vermelho puro
+      if (D.data[i] === 255 && D.data[i + 1] === 0 && D.data[i + 2] === 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+  }
+  const total = A.width * A.height - regs.reduce((s, [, , w, h]) => s + w * h, 0);
+  const pct = total > 0 ? (diff / total) * 100 : 0;
+  return { pixelsDiferentes: diff, percentual: Number(pct.toFixed(3)), regiao: x1 >= 0 ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : null };
+}
+
 async function comparar() {
   const { a, b, out, 'data-dir': dataDir } = opt;
   if (!a || !b) die('comparar exige --a e --b.');
@@ -476,16 +503,72 @@ async function comparar() {
   const A = PNG.sync.read(fs.readFileSync(String(a)));
   const B = PNG.sync.read(fs.readFileSync(String(b)));
   if (A.width !== B.width || A.height !== B.height) die(`tamanhos diferentes: ${A.width}x${A.height} × ${B.width}x${B.height}`);
-  // Regiões ignoradas (a área que a WI muda de propósito): "x,y,w,h;x,y,w,h"
-  const regs = String(opt.ignorar || '').split(';').filter(Boolean).map((r) => r.split(',').map(Number));
-  const mask = (img) => { for (const [x, y, w, h] of regs) for (let yy = y; yy < Math.min(y + h, img.height); yy++) for (let xx = x; xx < Math.min(x + w, img.width); xx++) { const i = (yy * img.width + xx) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 0; img.data[i + 3] = 255; } };
-  mask(A); mask(B);
-  const D = new PNG({ width: A.width, height: A.height });
-  const diff = pixelmatch(A.data, B.data, D.data, A.width, A.height, { threshold: 0.1 });
-  if (out) fs.writeFileSync(String(out), PNG.sync.write(D));
-  const total = A.width * A.height - regs.reduce((s, [, , w, h]) => s + w * h, 0);
-  const pct = total > 0 ? (diff / total) * 100 : 0;
-  console.log(JSON.stringify({ pixelsDiferentes: diff, percentual: Number(pct.toFixed(3)), diff: out || null }));
+  const r = diferenca(PNG, pixelmatch, A, B, opt.ignorar, out);
+  console.log(JSON.stringify({ ...r, diff: out || null }));
+}
+
+// screenshot + comparar numa chamada só: renderiza o HTML do mockup no tamanho da referência e
+// devolve o veredito (percentual ≤ --limite, padrão 0,5), a caixa da diferença e os dois PNGs.
+// Só abra uma imagem quando "ok" for false, e só o --recorte da "regiao".
+async function conferir() {
+  const { arquivo, ref, out, 'data-dir': dataDir } = opt;
+  if (!arquivo || !ref || !out) die('conferir exige --arquivo, --ref e --out (pasta).');
+  const { chromium, PNG, pixelmatch } = loadDeps(dataDir);
+  if (!PNG || !pixelmatch) die('pngjs/pixelmatch indisponíveis (passe --data-dir).');
+  const limite = Number(opt.limite || 0.5);
+  const nome = String(opt.nome || path.basename(String(arquivo)).replace(/\.html?$/i, '')).replace(/[^\w.-]+/g, '_');
+  fs.mkdirSync(String(out), { recursive: true });
+  const pngMock = path.join(String(out), `${nome}.mock.png`);
+  const pngDiff = path.join(String(out), `${nome}.diff.png`);
+  const A = PNG.sync.read(fs.readFileSync(String(ref)));
+  const vp = opt.viewport ? viewport : { width: A.width, height: A.height };
+  const browser = await launch(chromium, false);
+  const page = await (await browser.newContext({ viewport: vp })).newPage();
+  await page.goto(new URL(`file://${path.resolve(String(arquivo))}`).href, { waitUntil: 'load' });
+  await page.evaluate(() => document.fonts && document.fonts.ready);
+  await page.screenshot({ path: pngMock, fullPage: false, animations: 'disabled' });
+  await browser.close();
+  const B = PNG.sync.read(fs.readFileSync(pngMock));
+  if (A.width !== B.width || A.height !== B.height) die(`tamanhos diferentes: referência ${A.width}x${A.height} × mockup ${B.width}x${B.height} (passe --viewport ${A.width}x${A.height}).`);
+  const r = diferenca(PNG, pixelmatch, A, B, opt.ignorar, pngDiff);
+  console.log(JSON.stringify({ ok: r.percentual <= limite, limite, ...r, mock: pngMock, diff: pngDiff }));
+}
+
+// Várias capturas numa chamada só (telas × estados × larguras), sem um turno de modelo por captura.
+// --manifesto <json>: { "out": "<pasta>", "itens": [{ "nome", "url", "viewport"?, "esperar"?, "antes"?, "out"? }] }
+// (ou só a lista). A primeira captura entra na sessão; as outras a reaproveitam. Devolve uma linha
+// por item. Falha de login interrompe o resto.
+async function lote() {
+  if (!opt.manifesto) die('lote exige --manifesto <json>.');
+  let man;
+  try { man = JSON.parse(fs.readFileSync(String(opt.manifesto), 'utf8')); } catch (e) { die(`não consegui ler o manifesto (${String(e.message).split('\n')[0]}).`); }
+  const itens = Array.isArray(man) ? man : man.itens;
+  const outPadrao = Array.isArray(man) ? null : man.out;
+  if (!Array.isArray(itens) || !itens.length) die('manifesto sem itens.');
+  const resultados = [];
+  let parar = '';
+  for (const [i, it] of itens.entries()) {
+    const nome = it.nome || `#${i + 1}`;
+    const destino = it.out || outPadrao;
+    if (parar) { resultados.push({ nome, ok: false, erro: `não executado (${parar})` }); continue; }
+    if (!it.url || !it.nome || !destino) { resultados.push({ nome, ok: false, erro: 'item precisa de url, nome e out.' }); continue; }
+    const args = [process.argv[1], 'capturar', '--url', it.url, '--out', destino, '--nome', it.nome, '--sem-interativo', '--data-dir', opt['data-dir']];
+    for (const k of ['viewport', 'esperar', 'antes']) if (it[k]) args.push(`--${k}`, String(it[k]));
+    const r = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 300000, env: process.env });
+    if (r.status === 0) {
+      let j = {};
+      try { j = JSON.parse(r.stdout); } catch { /* saída inesperada */ }
+      resultados.push({ nome, ok: true, html: j.html, referencia: j.referencia, htmlKB: j.htmlKB, faltando: (j.faltando || []).length });
+    } else {
+      const erro = ocultar(((l) => l.find((x) => /^ERRO:/.test(x)) || l.filter(Boolean).pop() || 'falhou')(String(r.stderr || r.error || 'falhou').trim().split('\n'))).slice(0, 200);
+      resultados.push({ nome, ok: false, erro });
+      if (/sem sessão válida|login/i.test(erro)) parar = 'login falhou no item anterior';
+    }
+  }
+  for (const r of resultados) console.log(JSON.stringify(r));
+  const falhas = resultados.filter((r) => !r.ok).length;
+  console.log(`// ${resultados.length - falhas} de ${resultados.length} capturas ok${falhas ? `, ${falhas} com erro` : ''}`);
+  if (falhas) process.exitCode = 1;
 }
 
 // ---------------------------------------------------------------- edição sem ler o arquivo inteiro
@@ -526,20 +609,42 @@ async function pecas() {
     return [...m].map(([componente, a]) => ({ componente, ...a }));
   });
   await browser.close();
-  console.log(JSON.stringify(res, null, 1));
+  // Uma linha por componente (JSON compacto). --filtro <texto> mantém só os que o contêm;
+  // --max <n> limita a quantidade de linhas (padrão 60).
+  const filtro = opt.filtro ? String(opt.filtro).toLowerCase() : '';
+  const max = Number(opt.max || 60);
+  const lista = filtro ? res.filter((r) => JSON.stringify(r).toLowerCase().includes(filtro)) : res;
+  for (const r of lista.slice(0, max)) console.log(JSON.stringify(r));
+  console.log(`// ${lista.length} componente(s)${lista.length > max ? `; mostrando ${max} — use --filtro` : ''}`);
 }
 
 async function extrair() {
   if (!opt.arquivo || !opt.seletor) die('extrair exige --arquivo e --seletor.');
   const { browser, page } = await openStatic(opt.arquivo);
   const idx = Number(opt.indice || 0);
-  const out = await page.evaluate(([s, i]) => {
+  // --esqueleto [N]: só tags e atributos de marcação até N níveis (padrão 3), sem texto longo,
+  // para achar o trecho certo antes de extrair o HTML inteiro dele.
+  const prof = opt.esqueleto ? (opt.esqueleto === true ? 3 : Number(opt.esqueleto) || 3) : 0;
+  const out = await page.evaluate(([s, i, p]) => {
     const all = document.querySelectorAll(s);
-    return { total: all.length, html: all[i] ? all[i].outerHTML : null };
-  }, [String(opt.seletor), idx]);
+    const el = all[i];
+    if (!el) return { total: all.length, html: null };
+    if (!p) return { total: all.length, html: el.outerHTML };
+    const keep = ['id', 'data-componente', 'data-variacao', 'data-novo', 'role'];
+    const walk = (e, d) => {
+      const attrs = keep.filter((k) => e.hasAttribute(k)).map((k) => ` ${k}="${e.getAttribute(k)}"`).join('');
+      const cls = e.getAttribute('class');
+      const c = cls ? ` class="${cls.split(/\s+/).slice(0, 3).join(' ')}"` : '';
+      const t = e.tagName.toLowerCase();
+      const kids = [...e.children];
+      if (d >= p || !kids.length) return `<${t}${attrs}${c}>${kids.length ? `…(${kids.length})` : (e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40)}</${t}>`;
+      return `<${t}${attrs}${c}>\n${kids.map((k) => walk(k, d + 1)).join('\n')}\n</${t}>`;
+    };
+    return { total: all.length, html: walk(el, 1) };
+  }, [String(opt.seletor), idx, prof]);
   await browser.close();
   if (!out.html) die(`seletor não encontrou nada (total ${out.total}).`);
-  const max = Number(opt.max || 20000);
+  const max = Number(opt.max || 8000);
   const cut = out.html.length > max;
   console.log(`<!-- ${out.total} ocorrência(s); mostrando a ${idx}${cut ? `; cortado em ${max} de ${out.html.length} caracteres — use um seletor mais específico` : ''} -->`);
   console.log(cut ? out.html.slice(0, max) : out.html);
@@ -681,6 +786,6 @@ async function medir() {
 }
 
 const run = { auth, capturar, screenshot, comparar, pecas, extrair, substituir, 'css-de': cssDe,
-  'sessao-mcp': sessaoMcp, medir }[cmd];
-if (!run) die('comando: auth | capturar | screenshot | comparar | pecas | extrair | substituir | css-de | sessao-mcp | medir');
+  'sessao-mcp': sessaoMcp, medir, conferir, lote }[cmd];
+if (!run) die('comando: auth | capturar | lote | screenshot | comparar | conferir | pecas | extrair | substituir | css-de | sessao-mcp | medir');
 run().catch((e) => die(e.stack || String(e)));  // die() oculta os segredos

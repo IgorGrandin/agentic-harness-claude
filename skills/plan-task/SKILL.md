@@ -86,7 +86,7 @@ Antes de desenhar qualquer fatia, percorra a hierarquia do `CLAUDE.md` §3 pelas
 
 **Confirme o recorte com o dev.** Quais telas, abas e estados entram nesta task. Proponha a partir das fatias de frontend previstas. Print anexado é referência, não gabarito.
 
-**O mockup sai da tela real, pela skill `mockup-task`.** Carregue-a e siga-a: captura da tela renderizada do app, edição só da região que a WI muda com instâncias reais de `broker-*`, conferência de fidelidade por pixel, decisões `D<n>` verificáveis num `notes.md`. O trabalho mecânico roda num subagente; esta thread lê só o `resumo.md` dele e conduz o portão do mockup (§7 da skill). As pendências do mockup são perguntas do §4, uma por vez, com recomendação.
+**O mockup sai da tela real, pela skill `mockup-task`.** Carregue-a e siga-a: captura da tela renderizada do app, edição só da região que a WI muda com instâncias reais de `broker-*`, conferência de fidelidade por pixel, decisões `D<n>` verificáveis num `notes.md`. O trabalho mecânico roda em fases curtas (capturar, montar uma tela por subagente, consolidar), cada uma num subagente novo orquestrado por esta thread, que lê só o `resumo.md` e conduz o portão do mockup (§7 da skill). As pendências do mockup são perguntas do §4, uma por vez, com recomendação.
 
 - **Quando:** a captura precisa do app de pé. Com o corte em dois planos (backend, depois telas), monte e aprove a **estrutura** do mockup aqui, antes do plano de backend, quando a tela decide campo de contrato; a captura detalhada, com os estados reais, vem no plano de telas, com as APIs do backend já na branch.
 - **Mockup legado:** import do Claude Design em `platform/frontend/_imports/claude-design/` (WIs antigas) é só leitura e referência; não gera mockup novo.
