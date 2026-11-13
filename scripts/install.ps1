@@ -1,6 +1,10 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$ClaudeHome = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude')
+    [string]$ClaudeHome = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude'),
+    # Claude Code CLI used to register the mods (claude plugin install). Default: `claude` on PATH,
+    # used only when ClaudeHome is the real ~/.claude. Passing it explicitly opts in for any ClaudeHome.
+    [string]$PluginCli,
+    [switch]$SkipPluginInstall
 )
 
 # Installs only what manifest.json lists: CLAUDE.md, the agents, the skills and the
@@ -125,6 +129,43 @@ function Merge-ModsSettings([string]$Marketplace, [string]$MarketplacePath, [str
     }
 }
 
+# Writing enabledPlugins is not enough on a clean machine: Claude Code only lists a mod as installed
+# (and starts its MCP servers and hooks) after `claude plugin install`. Installs the mods that are
+# missing from plugins/installed_plugins.json. A failure is a warning: the files and settings are
+# already in place and the command can be rerun by hand.
+function Register-Mods([string]$Marketplace, [string]$MarketplacePath, [string[]]$Plugins) {
+    if ($SkipPluginInstall -or $WhatIfPreference) { return }
+    $defaultHome = [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude')).TrimEnd('\', '/')
+    $explicit = [bool]$PluginCli
+    if (-not $explicit -and $home_ -ne $defaultHome) { return }
+    $cli = if ($explicit) { $PluginCli } else { $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c) { $c.Source } }
+    if (-not $cli) { Write-Warning "claude CLI not found: run 'claude plugin install <mod>@$Marketplace' for each mod, or reinstall with it on PATH."; return }
+    $listFile = Join-Path $home_ 'plugins\installed_plugins.json'
+    $installed = if (Test-Path -LiteralPath $listFile) { Get-Content -Raw -Encoding UTF8 -LiteralPath $listFile } else { '' }
+    $missing = @($Plugins | Where-Object { $installed -notmatch ('"' + [regex]::Escape("$_@$Marketplace") + '"') })
+    # The CLI writes to stderr on failure; under $ErrorActionPreference = 'Stop' that would abort the install.
+    function Invoke-Cli([string[]]$CliArgs) {
+        $ErrorActionPreference = 'Continue'
+        & $cli @CliArgs *> $null
+        return $LASTEXITCODE
+    }
+    $failed = @()
+    $marketAdded = $false
+    foreach ($plugin in $missing) {
+        $name = "$plugin@$Marketplace"
+        $code = Invoke-Cli @('plugin', 'install', $name)
+        if ($code -ne 0 -and -not $marketAdded) {
+            # The marketplace may not be known to the CLI yet (clean machine): register the folder, then retry.
+            $marketAdded = $true
+            Invoke-Cli @('plugin', 'marketplace', 'add', $MarketplacePath) | Out-Null
+            $code = Invoke-Cli @('plugin', 'install', $name)
+        }
+        if ($code -ne 0) { $failed += $name }
+    }
+    if ($failed.Count) { Write-Warning ("Could not install: {0}. Run 'claude plugin install <name>' for each, then restart Claude Code." -f ($failed -join ', ')) }
+    Write-Host ("mods registered with the CLI: {0} installed, {1} already there, {2} failed" -f ($missing.Count - $failed.Count), (@($Plugins).Count - $missing.Count), $failed.Count)
+}
+
 Install-File $manifest.instructions
 foreach ($agent in $manifest.agents) { Install-File "agents\$agent.md" }
 foreach ($skill in $manifest.skills) { Install-Directory "skills\$skill" }
@@ -133,6 +174,7 @@ $mods = $manifest.mods
 $modsRelative = "plugins\marketplaces\$($mods.marketplace)"
 Install-Directory $mods.source $modsRelative
 Merge-ModsSettings $mods.marketplace (Assert-Inside (Join-Path $home_ $modsRelative)) @($mods.items)
+Register-Mods $mods.marketplace (Assert-Inside (Join-Path $home_ $modsRelative)) @($mods.items)
 
 $verb = if ($WhatIfPreference) { 'would install (WhatIf)' } else { 'installed' }
 $summary = "agentic-harness-claude $verb into ${home_}: $(@($manifest.agents).Count) agents, $(@($manifest.skills).Count) skills, $(@($mods.items).Count) mods"

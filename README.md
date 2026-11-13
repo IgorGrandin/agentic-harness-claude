@@ -61,7 +61,11 @@ agentes, as skills e o marketplace de mods. Cada skill é substituída por intei
 deixados por um harness anterior não sobrevivem. Do `settings.json` ele muda só as chaves `extraKnownMarketplaces.benai-mods` e `enabledPlugins` dos mods; o resto do arquivo fica como está. Ele não toca
 `projects/`, `sessions/`, `brixbroker/`, outros plugins nem skills fora da lista.
 
+O instalador também registra os mods na CLI (`claude plugin install <mod>@benai-mods`) quando eles ainda não estão em `plugins/installed_plugins.json`: só gravar `enabledPlugins` não basta numa máquina limpa, porque sem esse registro o mod não carrega o MCP nem os hooks. Isso roda só no `~/.claude` real e com `claude` no PATH; `-SkipPluginInstall` desliga, e `-PluginCli <caminho>` aponta outra CLI. Se o registro falhar, o instalador avisa e basta rodar o comando indicado.
+
 Depois de instalar, reinicie o Claude Code e confira os mods com `/plugin`.
+
+**Em outro computador**, o passo a passo completo é: `git clone`, `scripts/verify.ps1`, `scripts/install.ps1`, `scripts/sync.ps1` (Codex e Antigravity) e reiniciar o Claude Code. Pré-requisitos: Node com `npx`, Edge (ou Chrome) e Docker Desktop. O login de teste do fluxo de frontend (`mockup-task` e `verify-visual`) é automático só depois de salvar `~/.claude/brixbroker/captura/auth/credenciais-dev.json`, que não vai para o repositório (JSON por origem: `{"http://localhost:4201": {"usuario": "corretor.dev", "senha": "<senha>"}, "http://localhost:4300": {"usuario": "operador.dev", "senha": "<senha>"}}`; vale só para endereço local); sem ele, o primeiro login abre uma janela para o dev entrar uma vez.
 
 Antes de substituir qualquer item, faz backup em
 `~/.claude/portable-backups/<timestamp>/`. Para reverter, copie o conteúdo

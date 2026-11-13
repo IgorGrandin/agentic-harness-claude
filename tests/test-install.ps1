@@ -112,6 +112,31 @@ try {
     $s5=Get-Content -Raw -Encoding UTF8 (Join-Path $home5 'settings.json') | ConvertFrom-Json
     Require ((-not $s5.PSObject.Properties['hooks']) -and $s5.autoCompactWindow -eq 300000) 'Fresh install missed the window or left a hook'
 
+    # Mods are registered with the CLI (claude plugin install) when it is given explicitly; a fake CLI logs its calls.
+    $home6=Join-Path $temp 'plugins/.claude'
+    $fakeDir=Join-Path $temp 'fakecli'
+    New-Item -ItemType Directory -Force $home6,$fakeDir | Out-Null
+    $log=Join-Path $fakeDir 'calls.log'
+    $fake=Join-Path $fakeDir 'claude.cmd'
+    Set-Content -LiteralPath $fake -Value "@echo off`r`necho %* >> `"$log`"`r`nexit /b 0" -Encoding ASCII
+    $market=$manifest.mods.marketplace
+    & $installer -ClaudeHome $home6 -PluginCli $fake | Out-Null
+    $calls=@(Get-Content -LiteralPath $log)
+    foreach($m in $manifest.mods.items){ Require (@($calls | Where-Object { $_ -match "plugin install $([regex]::Escape($m))@$market" }).Count -eq 1) "CLI install not called once for mod: $m" }
+    # Mods already listed in installed_plugins.json are not installed again.
+    Remove-Item -LiteralPath $log
+    $listed=@($manifest.mods.items | ForEach-Object { '"' + "$_@$market" + '": []' }) -join ','
+    Set-Content -LiteralPath (Join-Path $home6 'plugins/installed_plugins.json') -Value ('{"version":2,"plugins":{' + $listed + '}}') -Encoding UTF8
+    & $installer -ClaudeHome $home6 -PluginCli $fake | Out-Null
+    Require (-not (Test-Path $log)) 'CLI install called for mods that are already installed'
+    # -WhatIf, -SkipPluginInstall and a non-default ClaudeHome without -PluginCli never call the CLI.
+    Remove-Item -LiteralPath (Join-Path $home6 'plugins/installed_plugins.json')
+    & $installer -ClaudeHome $home6 -PluginCli $fake -WhatIf | Out-Null
+    & $installer -ClaudeHome $home6 -PluginCli $fake -SkipPluginInstall | Out-Null
+    $env:PATH = "$fakeDir;$env:PATH"
+    & $installer -ClaudeHome $home6 | Out-Null
+    Require (-not (Test-Path $log)) 'CLI called when it should not have been'
+
     Write-Host 'install tests passed'
 } finally {
     if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
