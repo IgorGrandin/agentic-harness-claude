@@ -19,7 +19,8 @@ param(
 # Compares the working tree (tracked and untracked) with merge-base(Base, HEAD).
 # Item numbers match the list. Exit 0 = clean, 1 = at least one BLOCK,
 # 2 = no BLOCK but a check could not run or the script failed (UNVERIFIED, item 0
-# for a failure). WARN never changes the exit.
+# for a failure). WARN never changes the exit. Item 10's PR gate part (pipeline 158)
+# only ever WARNs: the gate runs after this check, so it cannot make the exit 2.
 # -DeployRunsJson replaces the Azure DevOps query (test seam): a JSON array shaped
 # like `az pipelines runs list` output. -GateRunsJson and -GateTimelineJson do the same
 # for the PR gate (pipeline 158) runs and the timeline of its newest run.
@@ -410,7 +411,9 @@ try {
             if ($null -eq $gateRuns) { $gateLookupFailed = $true }
         }
     }
-    if ($gateLookupFailed) { Add-Finding 10 'UNVERIFIED' '' 0 "Could not read the PR or the runs of pipeline $GatePipelineId (az login?). Gate freshness not checked." }
+    # The gate runs after this check (it validates what the dev pushes), so nothing here may be UNVERIFIED:
+    # a gate that cannot be read or matched locally only warns, and the exit stays 0 without other findings.
+    if ($gateLookupFailed) { Add-Finding 10 'WARN' '' 0 "Could not read the PR or the runs of pipeline $GatePipelineId (az login?). Gate freshness not checked." }
     elseif ($prNo -and $null -ne $gateRuns) {
         $ordered = @($gateRuns | Where-Object { $null -ne $_ } | Sort-Object { [int](Get-Prop $_ 'id') } -Descending)
         $docsOnly = '(^|/)(docs|backlog|\.cursor)/|\.md$'
@@ -433,7 +436,7 @@ try {
             $latest = $ordered[0]; $id = Get-Prop $latest 'id'; $result = [string](Get-Prop $latest 'result'); $status = [string](Get-Prop $latest 'status')
             if ($status -and $status -ne 'completed') { Add-Finding 10 'WARN' '' 0 "Run $id of pipeline $GatePipelineId is still $status; wait for it before review." }
             $head = & $headOf $latest
-            if ($null -eq $head) { Add-Finding 10 'UNVERIFIED' '' 0 "Run $id covers a merge commit that is not available locally; cannot tell which iteration it validated." }
+            if ($null -eq $head) { Add-Finding 10 'WARN' '' 0 "Run $id covers a merge commit that is not available locally; cannot tell which iteration it validated. The gate runs after this check: push and wait for a run over HEAD." }
             else {
                 $after = & $since $head
                 if ($after) {
@@ -456,7 +459,7 @@ try {
             if ($status -eq 'completed') {
                 $timeline = if ($GateTimelineJson) { Get-Content -Raw -Encoding UTF8 -LiteralPath $GateTimelineJson | ConvertFrom-Json }
                             else { Get-AzJson @('devops', 'invoke', '--organization', $AzOrg, '--area', 'build', '--resource', 'timeline', '--route-parameters', "project=$AzProject", "buildId=$id", '--api-version', '7.1') }
-                if ($null -eq $timeline) { Add-Finding 10 'UNVERIFIED' '' 0 "Could not read the timeline of run $id; skipped HostSmoke not checked." }
+                if ($null -eq $timeline) { Add-Finding 10 'WARN' '' 0 "Could not read the timeline of run $id; skipped HostSmoke not checked." }
                 else {
                     $skipped = @($timeline.records | Where-Object { $_.type -eq 'Task' -and $_.name -match 'HostSmoke' -and $_.result -eq 'skipped' } | ForEach-Object { $_.name })
                     if ($skipped.Count) { Add-Finding 10 'WARN' '' 0 "Run $id skipped HostSmoke task(s): $($skipped -join ', '). The gate did not prove them." }

@@ -201,6 +201,11 @@ try {
     Require (@($gm | Where-Object { $_ -like '*1 commit(s) came after it*code changed since: platform/backend/src/Svc.cs*' }).Count -eq 1) "Item 10: code after the last gate run not reported: $($gm -join ' | ')"
     Require (@($gm | Where-Object { $_ -like '*Run 21*finished failed*last green run 20*code changed after it*' }).Count -eq 1) "Item 10: failed run with older green not reported: $($gm -join ' | ')"
     Require (@($gm | Where-Object { $_ -like '*skipped HostSmoke*Broker.HostSmoke.Tests*' }).Count -eq 1) "Item 10: skipped HostSmoke not reported: $($gm -join ' | ')"
+    # A run over a merge commit this clone does not have only warns: the gate runs after this check.
+    $unk=Join-Path $temp 'gate-unknown.json'
+    @(@{id=30;result='succeeded';status='completed';sourceVersion=('1234567890abcdef' * 2 + '12345678')}) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $unk
+    $unkRes=Run-Check $null @('-GateRunsJson',$unk,'-GateTimelineJson',$gtl)
+    Require ($unkRes.Exit -eq 0 -and @($unkRes.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Severity -eq 'WARN' -and $_.Message -like '*not available locally*' }).Count -eq 1) "Item 10: unknown gate merge commit did not warn with exit 0: exit $($unkRes.Exit)"
     G reset -q --hard $headA
     $fresh=Run-Check $null @('-GateRunsJson',$gruns)
     Require (@($fresh.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*came after it*' }).Count -eq 0) 'Item 10: HEAD equal to the validated head still reported commits after the run'
