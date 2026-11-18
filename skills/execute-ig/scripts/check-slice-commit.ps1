@@ -14,6 +14,7 @@ param(
 #   2 the "Afirmacoes:" section exists ("Afirmacoes: nenhuma" counts) and every line in it has "prova:"
 #   3 the plan's elected discriminant of the slice has a "[visto]" on the line that names it
 #   4 no gap marker outside the exempt lines ("Decisao D<n>:" lines and the "Fatias pendentes:" section)
+#   5 the usage trailers Execute-Host (claude|antigravity|codex), Execute-Model and Execute-Started (ISO 8601 with offset)
 # Exit 0 = clean, 1 = at least one BLOCK, 2 = the message or the plan could not be read
 # or the script failed (UNVERIFIED, item 0).
 # -MessageFile always checks: the draft is a slice commit by intent. -Commit <sha> skips a
@@ -73,8 +74,26 @@ try {
             if (-not $trailers.ContainsKey($key)) { Add-Finding 1 'BLOCK' 0 "Missing trailer ${key}: (step 4 commit body)." }
         }
 
+        # Per-slice usage trailers: they let the cost and time of a slice be attributed to a host and a model.
+        $usage = @{}
+        for ($i = 0; $i -lt $msg.Count; $i++) {
+            if ($msg[$i] -match '^(Execute-(?:Host|Model|Started)):\s*(\S.*?)\s*$') { $usage[$Matches[1]] = $Matches[2] }
+        }
+        foreach ($key in 'Execute-Host', 'Execute-Model', 'Execute-Started') {
+            if (-not $usage.ContainsKey($key)) { Add-Finding 5 'BLOCK' 0 "Missing trailer ${key}: (step 4 commit body; host, model and start time of the slice)." }
+        }
+        if ($usage.ContainsKey('Execute-Host') -and $usage['Execute-Host'] -cnotin 'claude', 'antigravity', 'codex') {
+            Add-Finding 5 'BLOCK' 0 "Execute-Host must be claude, antigravity or codex, not ""$($usage['Execute-Host'])""."
+        }
+        if ($usage.ContainsKey('Execute-Started')) {
+            $parsed = [DateTimeOffset]::MinValue
+            if ($usage['Execute-Started'] -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$' -or -not [DateTimeOffset]::TryParse($usage['Execute-Started'], [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+                Add-Finding 5 'BLOCK' 0 "Execute-Started must be ISO 8601 with an offset (2026-11-18T10:00:00-03:00), not ""$($usage['Execute-Started'])""."
+            }
+        }
+
         # Sections and exempt lines.
-        $isTrailer = { param($l) $l -match '^Execute-(?:Plan|Base|Slice):' }
+        $isTrailer = { param($l) $l -match '^Execute-(?:Plan|Base|Slice|Host|Model|Started):' }
         $isHeader = { param($l) $l -match '^[^\s\-*][^:]{0,60}:\s*$' }
         $claimsStart = -1; $claimsInline = $false
         for ($i = 0; $i -lt $msg.Count; $i++) {

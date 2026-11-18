@@ -50,6 +50,28 @@ try {
     Require ($r.Exit -eq 1 -and (Has $r.Result 1 'BLOCK' '*Execute-Base*')) "Missing Execute-Base not blocked: exit $($r.Exit) $(Show $r)"
     $r=Run-Msg 'no-slice-trailer.msg'
     Require ($r.Exit -eq 1 -and (Has $r.Result 1 'BLOCK' '*Execute-Slice*')) "Missing Execute-Slice not blocked: exit $($r.Exit) $(Show $r)"
+    # Usage trailers (item 5): one variant of clean.msg per defect.
+    $clean=[IO.File]::ReadAllText((Join-Path $fx 'clean.msg'))
+    New-Item -ItemType Directory -Force -Path $temp | Out-Null
+    function Variant([string]$Name,[string]$Text){ $p=Join-Path $temp $Name; [IO.File]::WriteAllText($p,$Text); $p }
+    $r=Run-Msg (Variant 'no-host.msg' ($clean -replace '(?m)^Execute-Host:.*\r?\n',''))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*Execute-Host*')) "Missing Execute-Host not blocked: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'no-model.msg' ($clean -replace '(?m)^Execute-Model:.*\r?\n',''))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*Execute-Model*')) "Missing Execute-Model not blocked: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'no-started.msg' ($clean -replace '(?m)^Execute-Started:.*\r?\n',''))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*Execute-Started*')) "Missing Execute-Started not blocked: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'bad-host.msg' ($clean -replace '(?m)^Execute-Host:.*','Execute-Host: gemini'))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*claude, antigravity or codex*')) "Unknown Execute-Host not blocked: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'bad-started.msg' ($clean -replace '(?m)^Execute-Started:.*','Execute-Started: 2026-11-18 10:00'))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*ISO 8601 with an offset*')) "Execute-Started without offset not blocked: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'host-case.msg' ($clean -replace '(?m)^Execute-Host:.*','Execute-Host: Claude'))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*claude, antigravity or codex*')) "Execute-Host with a capital letter passed: exit $($r.Exit) $(Show $r)"
+    $r=Run-Msg (Variant 'time-only.msg' ($clean -replace '(?m)^Execute-Started:.*','Execute-Started: 10:00-03:00'))
+    Require ($r.Exit -eq 1 -and (Has $r.Result 5 'BLOCK' '*ISO 8601 with an offset*')) "Execute-Started without a date passed: exit $($r.Exit) $(Show $r)"
+    foreach($ok in @(@('antigravity','2026-11-18T10:00:00Z'),@('codex','2026-11-18T10:00:00.123-03:00'))){
+        $r=Run-Msg (Variant "ok-$($ok[0]).msg" (($clean -replace '(?m)^Execute-Host:.*',"Execute-Host: $($ok[0])") -replace '(?m)^Execute-Started:.*',"Execute-Started: $($ok[1])"))
+        Require ($r.Exit -eq 0) "Valid usage trailers ($($ok -join ' ')) were blocked: exit $($r.Exit) $(Show $r)"
+    }
     $r=Run-Msg 'no-claims.msg'
     Require ($r.Exit -eq 1 -and (Has $r.Result 2 'BLOCK' 'No "Afirma*')) "Missing Afirmacoes: section not blocked: exit $($r.Exit) $(Show $r)"
     $r=Run-Msg 'claim-no-proof.msg'
