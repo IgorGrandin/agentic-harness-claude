@@ -29,7 +29,7 @@ Read this before any command. The run has one fixed order; each step is defined 
 
 `0 start → 1 resolve plan → 2 preflight → 4 slices (loop) → 5 integration review → 6 commit fixes → 7 final gate → 8 report → 9 metrics → 10 hand off`
 
-**One session, one slice.** After each slice commit with slices still pending, the session stops and the dev opens a new one with `/execute-ig <WI>` (step 4). The session that commits the last slice goes on to step 5.
+**One session, one slice.** After every slice commit, the last one included, the session stops and the dev opens a new one with `/execute-ig <WI>` (step 4). Steps 5 to 10 never run in a session that committed a slice: the session that finds every slice committed and no gate evidence starts at step 5. This is the only mode, so the slices can be done on one host (Antigravity, Codex) and the review and gate on another (Claude) with no flag: the state travels in the commits.
 
 Invariants. They override anything in `execute.md` or in the rules that reads differently:
 1. **One gate per run: step 7, against the last commit, on a clean tree.** Before step 7 you never run `devops/scripts/run-gate.ps1`, `dotnet test` on a whole project without `--filter`, a full frontend suite, or any "debug round" of the suite. Between slices only focused checks run, each scoped with `--filter` or the project's targeted command: the tests the slice adds or changes and, when the slice touches persistence, DI, or host, the existing Integration tests of the touched class or module (step 4, "Integration of the touched area"). A focused check is not the gate; the whole project and `run-gate.ps1` stay forbidden.
@@ -46,7 +46,7 @@ A resumed session is any session of the run after the first slice commit: `git l
 - **Do** step 0 (record state, clean tree), step 1 (`resolve-plan.ps1` and the Work Item's "Decisões do dev"), and step 4 for the pending slice, starting from `show-slice.ps1` (see Load by step).
 - **Skip preflight and the coverage challenge** unless `git diff <last slice commit> -- <plan>` is not empty; then run them only over that delta (step 2).
 - **Do not run before the first edit:** `check-owner-blockers.ps1` (step 5 and the step 7 trap only), probes of local ports or dev servers, a build or test of the whole project, or any reading of `execute-review`, rules `060`/`110` and `execute.md` §4 (they belong to steps 5 to 7).
-- **Do not list steps 5 to 10 in the task list** unless this session commits the last pending slice. Then add them after that commit, not before.
+- **List steps 5 to 10 in the task list only when no slice is pending** (the review session, which starts at step 5). A session that implements a slice lists that slice and its commit only.
 - The base-freshness question (step 0) stays only when `origin/master` moved in files shared with the branch or the plan.
 
 ## Load by step
@@ -122,7 +122,7 @@ Handle each outcome:
 - **`needs_evidence_review`:** completed metadata is not proof, and you must not replay slices or rerun a gate by habit.
   - Check the existing report and metrics against the plan, branch, commit SHA, gate SHA, and clean-tree evidence.
   - If valid evidence already proves the final gate, report that no work remains.
-  - If every slice is committed but no valid gate evidence exists, a run stopped after its slice commits: confirm each `completed` slice has its commit on the branch, then resume at step 5 with the run base and the evidence from step 0. A `completed` slice without its commit has no evidence: treat it as pending.
+  - If every slice is committed but no valid gate evidence exists, this is the normal entry to the review session (step 4 stops after the last slice): confirm each `completed` slice has its commit on the branch, then start at step 5 with the run base and the evidence from step 0. A `completed` slice without its commit has no evidence: treat it as pending.
 - **`blocked`, `needs_status_review`, `no_match`:** inspect the plan's native status and the current diff, and resolve the blocker before implementing.
 
 Confirm the plan file is committed. If it is not, stop: only committed plans are executable.
@@ -189,7 +189,7 @@ The body may carry a `Decisão D<n>:` line for a recorded decision and a `Fatias
 
 It ends with three trailers: `Execute-Plan: <plan path>`, `Execute-Base: <run base SHA>`, and `Execute-Slice: <slice ID>`. Steps 5, 6, and 8 read the evidence of every slice from these bodies, not from memory.
 
-**Stop after the slice commit.** When slices are still pending, do not start the next one in this session. Report the slices done (with their commit SHAs) and the slices pending, and tell the dev to open a new session and run `/execute-ig <WI>`. The next session resumes through the Run base (step 0), the trailers above, and `resolve-plan.ps1` (step 1); no other state is carried. Per-slice minutes stay in each commit body, and step 9 aggregates them at the end of the run. When no slice is pending, go on to step 5 in this session.
+**Stop after the slice commit.** When slices are still pending, do not start the next one in this session. Report the slices done (with their commit SHAs) and the slices pending, and tell the dev to open a new session and run `/execute-ig <WI>`. The next session resumes through the Run base (step 0), the trailers above, and `resolve-plan.ps1` (step 1); no other state is carried. Per-slice minutes stay in each commit body, and step 9 aggregates them at the end of the run. This holds for the last slice too: when no slice is pending, say so, point to step 5 and tell the dev that `/execute-ig <WI>` in a new session (on any host) starts the integration review. Never go on to step 5 in the session that committed a slice.
 
 Outside BrixBroker (see Authority), use `implementer` subagents only for slices that meet all of these:
 - the slice is ready;
