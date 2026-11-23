@@ -230,7 +230,7 @@ When a finding needs a decision the plan does not cover (product, ADR, scope or 
 
 First run the deterministic part of the owner's blockers list from the repository root: `& (Join-Path $skillRoot 'scripts/check-owner-blockers.ps1')`. It compares the working tree with the merge-base of `origin/master`.
 - **Exit 1 (BLOCK):** fix each finding in the main session and run it again.
-- **Exit 2 (UNVERIFIED):** a check could not run, usually `az login` for the dev2 deploy lookup or the fetch of `origin/master`. Resolve it before step 6; never treat it as clean. The PR gate (item 10, pipeline 158) never causes exit 2: it runs after this check, so an unreadable or unmatched run only warns.
+- **Exit 2 (UNVERIFIED):** a check could not run, usually the fetch of `origin/master`. Resolve it before step 6; never treat it as clean. The PR gate (item 10, pipeline 158) never causes exit 2: it runs after this check, so an unreadable or unmatched run only warns.
 - **WARN:** goes to the reviewer below, who judges whether each one is justified. Item 10 (branch behind `origin/master`, with the commit count) was the dev's call in step 0: do not merge now, do not ask again, and do not hand it to the reviewer.
 
 Send the integrated diff to the `reviewer` subagent once, in fresh context. The integrated diff is `git diff <run base>` (step 0), which spans every slice commit of the run, including those of an earlier session, plus any uncommitted change; `git diff` alone shows only the uncommitted part. Take the traceability table, the artifact search terms, and the deviations from the slice commit bodies. Brief it with:

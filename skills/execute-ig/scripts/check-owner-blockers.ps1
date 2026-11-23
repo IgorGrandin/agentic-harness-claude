@@ -2,9 +2,6 @@
 param(
     [string]$RepoRoot,
     [string]$Base = 'origin/master',
-    [int]$DeployPipelineId = 139,
-    [string]$DeployTarget = 'dev2',
-    [string]$DeployRunsJson,
     [int]$GatePipelineId = 158,
     [int]$PrNumber,
     [string]$GateRunsJson,
@@ -21,9 +18,8 @@ param(
 # 2 = no BLOCK but a check could not run or the script failed (UNVERIFIED, item 0
 # for a failure). WARN never changes the exit. Item 10's PR gate part (pipeline 158)
 # only ever WARNs: the gate runs after this check, so it cannot make the exit 2.
-# -DeployRunsJson replaces the Azure DevOps query (test seam): a JSON array shaped
-# like `az pipelines runs list` output. -GateRunsJson and -GateTimelineJson do the same
-# for the PR gate (pipeline 158) runs and the timeline of its newest run.
+# -GateRunsJson and -GateTimelineJson replace the Azure DevOps queries (test seam) for the
+# PR gate (pipeline 158) runs and the timeline of its newest run.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -344,56 +340,6 @@ try {
     }
     foreach ($table in $enabled.Keys | Sort-Object) {
         if (-not $forced.ContainsKey($table)) { Add-Finding 4 'BLOCK' $enabled[$table] 0 "Table $table enables RLS without FORCE ROW LEVEL SECURITY (ADR-0009)." }
-    }
-
-    # Item 4 - a branch migration deployed to the shared environment is never edited or removed afterwards.
-    # Looked up whenever the branch touched migrations, in commits or in the working tree.
-    $committedMigrations = @((Invoke-Git @('log', '--name-only', '--format=', "$mb..HEAD")).Lines | Where-Object { $_ -match $migrationPattern })
-    $touchesMigrations = $committedMigrations.Count -gt 0 -or @($changes | Where-Object { $_.Path -match $migrationPattern -or ($_.Old -and $_.Old -match $migrationPattern) }).Count -gt 0
-    if ($touchesMigrations) {
-        $branch = (Invoke-Git @('rev-parse', '--abbrev-ref', 'HEAD')).Lines[0]
-        $runs = $null
-        if ($branch -eq 'HEAD') { Add-Finding 4 'UNVERIFIED' '' 0 'Detached HEAD: cannot look up deploy runs for this branch.' }
-        elseif ($DeployRunsJson) { $parsed = Get-Content -Raw -Encoding UTF8 -LiteralPath $DeployRunsJson | ConvertFrom-Json; $runs = @($parsed) }
-        else {
-            $previous = $ErrorActionPreference
-            $ErrorActionPreference = 'Continue'
-            try {
-                $raw = & az pipelines runs list --pipeline-ids $DeployPipelineId --branch "refs/heads/$branch" --top 200 -o json 2>$null
-                if ($LASTEXITCODE -eq 0) { $parsed = ($raw -join "`n") | ConvertFrom-Json; $runs = @($parsed) }
-            } catch { $runs = $null }
-            finally { $ErrorActionPreference = $previous }
-            if ($null -eq $runs) { Add-Finding 4 'UNVERIFIED' '' 0 "Could not list runs of pipeline $DeployPipelineId (az login?). Branch migrations not checked against $DeployTarget." }
-        }
-        $branchRuns = 0; $targetedRuns = 0
-        foreach ($run in @($runs | Where-Object { $null -ne $_ })) {
-            if ((Get-Prop $run 'sourceBranch') -ne "refs/heads/$branch") { continue }
-            $branchRuns++
-            $target = Get-Prop (Get-Prop $run 'templateParameters') 'deploymentTarget'
-            if ($target) { $targetedRuns++ }
-            if ($target -ne $DeployTarget) { continue }
-            $sha = [string](Get-Prop $run 'sourceVersion'); $id = Get-Prop $run 'id'; $result = [string](Get-Prop $run 'result')
-            if ((Invoke-Git @('cat-file', '-e', "$sha^{commit}") -AllowFail).Code -ne 0) {
-                Add-Finding 4 'UNVERIFIED' '' 0 "Run $id deployed commit $sha to $DeployTarget, which is not available locally."
-                continue
-            }
-            $severity = if ($result -eq 'canceled') { 'WARN' } else { 'BLOCK' }
-            $short = $sha.Substring(0, [Math]::Min(8, $sha.Length))
-            # Every migration the branch had added at the deployed commit must still exist, unchanged.
-            $deployedSet = @((Invoke-Git @('diff', '--name-only', '--no-renames', '--diff-filter=A', "$mb...$sha")).Lines | Where-Object { $_ -match $migrationPattern -and $_ -notmatch $snapshotPattern })
-            foreach ($p in $deployedSet) {
-                if ($null -ne (Get-BaseText $mb $p)) { continue }
-                $now = Get-CurrentText $p
-                if ($null -eq $now) {
-                    Add-Finding 4 $severity $p 0 "Deployed to $DeployTarget by run $id ($result, commit $short) and removed afterwards (migrations remove/add?). Restore it from that commit and create a new migration for the change."
-                } elseif ((Normalize (Get-BaseText $sha $p)) -ne (Normalize $now)) {
-                    Add-Finding 4 $severity $p 0 "Deployed to $DeployTarget by run $id ($result, commit $short) and edited afterwards. Restore the content of that commit and create a new migration."
-                }
-            }
-        }
-        if ($branchRuns -gt 0 -and $targetedRuns -eq 0) {
-            Add-Finding 4 'UNVERIFIED' '' 0 "Runs of pipeline $DeployPipelineId exist for this branch, but none reports templateParameters.deploymentTarget."
-        }
     }
 
     # Item 10 - the PR gate (pipeline 158) must have run green over the last iteration.

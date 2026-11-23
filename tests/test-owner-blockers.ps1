@@ -8,9 +8,8 @@ $temp=Join-Path ([IO.Path]::GetTempPath()) "owner-blockers-$([Guid]::NewGuid().T
 $repo=Join-Path $temp 'repo'
 function G { $previous=$ErrorActionPreference; $ErrorActionPreference='Continue'; try { $out=& git -C $repo @args 2>&1; if($LASTEXITCODE -ne 0){throw "git $args failed: $out"}; $out } finally { $ErrorActionPreference=$previous } }
 function Put([string]$Path,[string]$Text){ $full=Join-Path $repo $Path; New-Item -ItemType Directory -Force -Path (Split-Path $full) | Out-Null; [IO.File]::WriteAllText($full,$Text) }
-function Run-Check([string]$RunsFile,[string[]]$Extra=@()){
+function Run-Check([string[]]$Extra=@()){
     $a=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$check,'-RepoRoot',$repo,'-Base','master','-NoFetch','-AsJson')
-    if($RunsFile){$a+=@('-DeployRunsJson',$RunsFile)}
     $a+=$Extra
     $out=& powershell @a
     [pscustomobject]@{Exit=$LASTEXITCODE; Result=(($out -join "`n") | ConvertFrom-Json)}
@@ -37,20 +36,13 @@ try {
 
     # Clean branch: nothing changed.
     G checkout -q -b feature/clean
-    $clean=Run-Check $null
+    $clean=Run-Check
     Require ($clean.Exit -eq 0 -and $clean.Result.Status -eq 'CLEAN') "Clean branch did not pass: $($clean.Exit)"
 
-    # Feature branch with a migration deployed to dev2, then edited in the working tree.
+    # Feature branch with a new migration, edited in the working tree.
     G checkout -q master; G checkout -q -b feature/x
     Put "$mig/20261001_New.cs" "class New { void Up() { Sql(""ALTER TABLE s.t ENABLE ROW LEVEL SECURITY; ALTER TABLE s.t FORCE ROW LEVEL SECURITY;""); } }`n"
     G add -A; G commit -q -m new-migration
-    $deployed=(G rev-parse HEAD).Trim()
-    $runs=Join-Path $temp 'runs.json'
-    @(
-        @{id=1;result='succeeded';sourceVersion=$deployed;sourceBranch='refs/heads/feature/x';templateParameters=@{deploymentTarget='dev2'}},
-        @{id=2;result='succeeded';sourceVersion=$deployed;sourceBranch='refs/heads/feature/x';templateParameters=@{deploymentTarget='dev1'}},
-        @{id=3;result='succeeded';sourceVersion=$deployed;sourceBranch='refs/heads/feature/other';templateParameters=@{deploymentTarget='dev2'}}
-    ) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $runs
 
     Put 'platform/backend/tests/U/FooTests.cs' "public class FooTests {`n  [Fact]`n  public void Keep_Me() {}`n  [Theory]`n  [InlineData(1)]`n  public void Added_Test(int x) {}`n}`n"
     Put "$mig/20260101_Old.cs" "class Old { void Up() { /* edited */ } }`n"
@@ -72,7 +64,7 @@ try {
     Put "$feat/c.ts" "const x = y as any;`n// as any in a comment`n"
     Put "$feat/d.spec.ts" "const s = getComputedStyle(el);`n"
     Put "$feat/d.scss" ".a:nth-child(2) { color: var(--md-a, #fff); }`n"
-    $r=Run-Check $runs
+    $r=Run-Check
     $res=$r.Result
     Require ($r.Exit -eq 1 -and $res.Status -eq 'BLOCKED') "Violations did not block: exit $($r.Exit)"
     $removed=@($res.Findings | Where-Object { $_.Item -eq 1 })
@@ -90,8 +82,6 @@ try {
     Require (@($res.Findings | Where-Object { $_.Item -eq 4 -and $_.Message -like '*s.t*' }).Count -eq 0) 'Item 4: table with FORCE was reported'
     Require (Has $res 4 'WARN' '*20261002_Other.cs') 'Item 4: DropColumn in Up not warned'
     Require (@($res.Findings | Where-Object { $_.Message -like '*DropTable*' }).Count -eq 0) 'Item 4: DropTable in Down was reported'
-    $dev2=@($res.Findings | Where-Object { $_.Item -eq 4 -and $_.Severity -eq 'BLOCK' -and $_.Path -like '*20261001_New.cs' })
-    Require ($dev2.Count -eq 1 -and $dev2[0].Message -like '*run 1 *') 'Item 4: migration edited after the dev2 deploy not blocked exactly once (dev1 and other-branch runs must be ignored)'
     Require (Has $res 9 'WARN' 'docs/notes.md') 'Item 9: temp path in docs not warned'
     Require (Has $res 12 'WARN' '*a.html') 'Item 12: native input not warned'
     $hex=@($res.Findings | Where-Object { $_.Item -eq 13 })
@@ -114,40 +104,15 @@ try {
     Require (Has $res 25 'WARN' '*d.spec.ts') 'Item 25: getComputedStyle not warned'
     Require (@($res.Findings | Where-Object { $_.Item -eq 2 -and $_.Message -like '*!important*' }).Count -eq 1) 'Item 2: !important in a shared style not warned'
 
-    # A branch-only migration edited before any deploy passes; a canceled deploy only warns.
-    Put "$mig/20261001_New.cs" "class New { void Up() { Sql(""ALTER TABLE s.t ENABLE ROW LEVEL SECURITY; ALTER TABLE s.t FORCE ROW LEVEL SECURITY;""); } }`n"
+    # A branch-only migration edited in the working tree is not blocked (no deploy lookup).
     G checkout -q -- .; G clean -qfd
     Put "$mig/20261001_New.cs" "class New { void Up() { Sql(""ALTER TABLE s.t ENABLE ROW LEVEL SECURITY; ALTER TABLE s.t FORCE ROW LEVEL SECURITY; -- local edit""); } }`n"
-    $none=Join-Path $temp 'none.json'; '[]' | Set-Content -Encoding UTF8 -LiteralPath $none
-    $local=Run-Check $none
-    Require ($local.Exit -eq 0) "Editing a never-deployed branch migration was not allowed: exit $($local.Exit)"
-    $canceled=Join-Path $temp 'canceled.json'
-    @(@{id=9;result='canceled';sourceVersion=$deployed;sourceBranch='refs/heads/feature/x';templateParameters=@{deploymentTarget='dev2'}}) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $canceled
-    $c=Run-Check $canceled
-    Require ($c.Exit -eq 0 -and (Has $c.Result 4 'WARN' '*20261001_New.cs')) 'A canceled dev2 run did not produce a warning only'
+    $local=Run-Check
+    Require ($local.Exit -eq 0) "Editing a branch migration was not allowed: exit $($local.Exit)"
 
-    # A deploy of a commit that is not available locally is UNVERIFIED, not clean.
-    $unknown=Join-Path $temp 'unknown.json'
-    @(@{id=7;result='succeeded';sourceVersion=('f'*40);sourceBranch='refs/heads/feature/x';templateParameters=@{deploymentTarget='dev2'}}) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $unknown
-    $u=Run-Check $unknown
-    Require ($u.Exit -eq 2 -and $u.Result.Status -eq 'UNVERIFIED') "Unknown deployed commit did not yield UNVERIFIED: exit $($u.Exit)"
-
-    # Regenerating a deployed migration (remove + add under a new name) blocks.
-    G checkout -q -- .; G clean -qfd
-    Remove-Item -LiteralPath (Join-Path $repo "$mig/20261001_New.cs")
-    Put "$mig/20261003_New2.cs" "class New2 { void Up() { } }`n"
-    $regen=Run-Check $runs
-    Require ($regen.Exit -eq 1 -and @($regen.Result.Findings | Where-Object { $_.Item -eq 4 -and $_.Severity -eq 'BLOCK' -and $_.Path -like '*20261001_New.cs' -and $_.Message -like '*removed afterwards*' }).Count -eq 1) 'Item 4: deployed migration regenerated under a new name was not blocked'
-
-    # Runs for the branch without a deployment target, and a crash, are UNVERIFIED.
-    $untargeted=Join-Path $temp 'untargeted.json'
-    @(@{id=5;result='succeeded';sourceVersion=$deployed;sourceBranch='refs/heads/feature/x'}) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $untargeted
-    G checkout -q -- .; G clean -qfd
-    Put "$mig/20261001_New.cs" "class New { void Up() { Sql(""ALTER TABLE s.t ENABLE ROW LEVEL SECURITY; ALTER TABLE s.t FORCE ROW LEVEL SECURITY; -- local edit""); } }`n"
-    $nt=Run-Check $untargeted
-    Require ($nt.Exit -eq 2) "Runs without deploymentTarget did not yield UNVERIFIED: exit $($nt.Exit)"
+    # A crash is UNVERIFIED item 0.
     $broken=Join-Path $temp 'broken.json'; 'not json' | Set-Content -Encoding UTF8 -LiteralPath $broken
-    $crash=Run-Check $broken
+    $crash=Run-Check @('-GateRunsJson',$broken)
     Require ($crash.Exit -eq 2 -and @($crash.Result.Findings | Where-Object { $_.Item -eq 0 -and $_.Severity -eq 'UNVERIFIED' }).Count -eq 1) "A crash did not yield UNVERIFIED item 0: exit $($crash.Exit)"
 
     # Item 3 - hand-declared contract types, and backend contracts the generator has not seen.
@@ -158,7 +123,7 @@ try {
     Put "$feat/models/old-api.model.ts" "export interface Existing { id: string; }`nexport interface ViewOnly2 { x: number }`n"
     Put "$feat/models/view.model.ts" "export interface Existing { id: string; }`n"
     Put 'platform/backend/src/M/M.Infrastructure/Webhooks/Payload.cs' "public sealed class ButtonBody { }`n"
-    $contracts=Run-Check $none
+    $contracts=Run-Check
     $i3=@($contracts.Result.Findings | Where-Object { $_.Item -eq 3 })
     $i3Block=@($i3 | Where-Object { $_.Severity -eq 'BLOCK' -and $_.Path -like '*x-api.model.ts' } | ForEach-Object Line | Sort-Object)
     Require ($contracts.Exit -eq 1 -and ($i3Block -join ',') -eq '3,4,9,15') "Item 3: hand-declared contract types not blocked on lines 3,4,9,15 (got '$($i3Block -join ',')')"
@@ -170,7 +135,7 @@ try {
     # Item 10 - Base moved ahead of the branch.
     G checkout -q -- .; G clean -qfd
     G checkout -q master; Put 'README.md' "moved`n"; G add -A; G commit -q -m moved; G checkout -q feature/clean
-    $stale=Run-Check $null
+    $stale=Run-Check
     $behind=@($stale.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Severity -eq 'WARN' -and $_.Message -like '*1 commit(s) behind*' })
     Require ($stale.Exit -eq 0 -and $behind.Count -eq 1) "Item 10: branch behind master did not warn with the commit count: exit $($stale.Exit)"
 
@@ -178,7 +143,7 @@ try {
     G checkout -q master; Put 'platform/backend/migrations.lock' "a`nmaster-line`n"; G add -A; G commit -q -m lock-master
     G checkout -q feature/clean; G reset -q --hard master~1
     Put 'platform/backend/migrations.lock' "a`nbranch-line`n"; G add -A; G commit -q -m lock-branch
-    $conf=Run-Check $null
+    $conf=Run-Check
     Require (@($conf.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*conflicts in*migrations.lock*keep every line*' }).Count -eq 1) "Item 10: merge conflict in migrations.lock not reported: $($conf.Result.Findings | ForEach-Object { $_.Message })"
 
     # Item 10 - PR gate freshness (pipeline 158) from recorded runs.
@@ -196,7 +161,7 @@ try {
     ) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $gruns
     $gtl=Join-Path $temp 'gate-timeline.json'
     @{records=@(@{type='Task';name='Broker.HostSmoke.Tests';result='skipped'},@{type='Task';name='Unit';result='succeeded'})} | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $gtl
-    $gate=Run-Check $null @('-GateRunsJson',$gruns,'-GateTimelineJson',$gtl)
+    $gate=Run-Check @('-GateRunsJson',$gruns,'-GateTimelineJson',$gtl)
     $gm=@($gate.Result.Findings | Where-Object { $_.Item -eq 10 } | ForEach-Object { $_.Message })
     Require (@($gm | Where-Object { $_ -like '*1 commit(s) came after it*code changed since: platform/backend/src/Svc.cs*' }).Count -eq 1) "Item 10: code after the last gate run not reported: $($gm -join ' | ')"
     Require (@($gm | Where-Object { $_ -like '*Run 21*finished failed*last green run 20*code changed after it*' }).Count -eq 1) "Item 10: failed run with older green not reported: $($gm -join ' | ')"
@@ -204,10 +169,10 @@ try {
     # A run over a merge commit this clone does not have only warns: the gate runs after this check.
     $unk=Join-Path $temp 'gate-unknown.json'
     @(@{id=30;result='succeeded';status='completed';sourceVersion=('1234567890abcdef' * 2 + '12345678')}) | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $unk
-    $unkRes=Run-Check $null @('-GateRunsJson',$unk,'-GateTimelineJson',$gtl)
+    $unkRes=Run-Check @('-GateRunsJson',$unk,'-GateTimelineJson',$gtl)
     Require ($unkRes.Exit -eq 0 -and @($unkRes.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Severity -eq 'WARN' -and $_.Message -like '*not available locally*' }).Count -eq 1) "Item 10: unknown gate merge commit did not warn with exit 0: exit $($unkRes.Exit)"
     G reset -q --hard $headA
-    $fresh=Run-Check $null @('-GateRunsJson',$gruns)
+    $fresh=Run-Check @('-GateRunsJson',$gruns)
     Require (@($fresh.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*came after it*' }).Count -eq 0) 'Item 10: HEAD equal to the validated head still reported commits after the run'
 
     # Hook: denies edits to generated type files, allows everything else.

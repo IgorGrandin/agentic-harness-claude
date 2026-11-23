@@ -9,8 +9,7 @@ O Claude Code não carrega `.cursor/rules/*.mdc` sozinho: ao planejar, implement
 e confira o diff contra cada item que a área tocada alcança.
 
 Parte da lista é checada por script, que o `/execute-ig` (passos 5 e 7) e o `/revise` rodam:
-`scripts/check-owner-blockers.ps1`. Ele **bloqueia** os itens 1, 3, 4 (migration publicada, RLS sem `FORCE`, migration
-da branch editada depois do deploy no dev2), 10, 14 e 21 (`$any`), e **alerta** os itens 2 (inclui `!important`), 4
+`scripts/check-owner-blockers.ps1`. Ele **bloqueia** os itens 1, 3, 4 (migration publicada e RLS sem `FORCE`), 10, 14 e 21 (`$any`), e **alerta** os itens 2 (inclui `!important`), 4
 (`DropColumn`/`DropTable` no `Up`), 9, 12, 13, 21 (`as any`), 22, 24 e 25. Um hook no `.claude/settings.local.json` do projeto nega Edit/Write em `generated/*.types.ts` (item 3). Os
 demais itens são de julgamento: o script não os enxerga.
 
@@ -30,9 +29,10 @@ demais itens são de julgamento: o script não os enxerga.
 4. **Migrations** (1689, 1772, 1822):
    - DROP/contração vai em migration separada, num deploy posterior (ADR-0049 §8);
    - migration já aplicada em ambiente compartilhado não é editada nem removida: crie uma nova
-     (ADR-0045). Vale para a que está no master e para a da branch já publicada no dev2 por build
-     manual. Migration que só existe na branch e só rodou localmente pode ser editada, regerando
-     `Designer` e snapshot (orientação do owner na PR 1772);
+     (ADR-0045). O script só confere a que está no master; saber se a da branch já foi para um
+     ambiente (build manual no dev2, por exemplo) é do dev, que não a edita depois disso. Migration que só
+     existe na branch e nunca foi implantada pode ser editada, regerando `Designer` e snapshot
+     (orientação do owner na PR 1772);
    - tabela tenant-owned tem RLS `ENABLE` + `FORCE` + `WITH CHECK` (ADR-0009);
    - depois de trazer o master, confira o snapshot (ele mescla sem marcador de conflito) e a
      ordem do `migrations.lock`.
