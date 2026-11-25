@@ -323,14 +323,15 @@ Exit 1 means the tree is dirty or the manifest belongs to another HEAD: fix that
 
 ## 9. Metrics
 
-Append the `rodadas.csv` line that `execute.md` §7 defines. Then append the detailed row with `scripts/append-metrics.ps1`, following [references/metrics.md](references/metrics.md).
+Append the `rodadas.csv` line that `execute.md` §7 defines. Then append the detailed row with `scripts/append-metrics.ps1 ... -Repo <repository root>`, following [references/metrics.md](references/metrics.md). `-Repo` reads each slice's host and model from its commit trailers, so slices done on Antigravity or Codex are recorded as such. This step is the same on every host: an Antigravity or Codex session that reaches step 9 appends both rows too.
 
-Record blocked or interrupted runs too. Leave token counts blank when the host does not expose them.
+Record blocked or interrupted runs too. Leave token counts blank when the host does not expose them. Step 10 quotes the path `append-metrics.ps1` printed; without it, step 9 did not happen.
 
 ## 10. Hand off
 
 Tell the dev:
 - the report path, commit SHA, and gate status;
+- the metrics path `append-metrics.ps1` printed in step 9;
 - the evidence block path (step 8), to paste in the PR description. Any commit after the block's HEAD makes it stale: render it again;
 - the slice outcomes, correction rounds, and deviations;
 - the time spent per stage;

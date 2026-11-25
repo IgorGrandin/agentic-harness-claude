@@ -24,6 +24,10 @@ param(
     [string]$SliceModels = '{}',
     [string]$InputTokens = '',
     [string]$OutputTokens = '',
+    # Product repository. When set, slice_models is read from the Execute-Slice, Execute-Host and
+    # Execute-Model trailers of this plan's slice commits on HEAD, so slices done on another host
+    # (Antigravity, Codex) are recorded with the model that actually ran them.
+    [string]$Repo = '',
     [string]$Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude\brixbroker\execute-rodadas.csv')
 )
 
@@ -36,7 +40,44 @@ try { $null = [DateTimeOffset]::Parse($StartedAt); $null = [DateTimeOffset]::Par
 if (@($PeakWorkers,$SlicesTotal,$SlicesPassed,$CorrectionRounds) | Where-Object { $_ -lt 0 } | Measure-Object | Select-Object -ExpandProperty Count) { throw 'Counts and durations cannot be negative.' }
 if ($SlicesPassed -gt $SlicesTotal) { throw 'SlicesPassed cannot exceed SlicesTotal.' }
 if (@($ImplementationMinutes,$SliceReviewMinutes,$FocusedVerificationMinutes,$IntegrationReviewMinutes,$FinalGateMinutes,$PostGateReviewMinutes,$TotalMinutes) | Where-Object { $_ -lt 0 } | Measure-Object | Select-Object -ExpandProperty Count) { throw 'Counts and durations cannot be negative.' }
-try { $null = $SliceModels | ConvertFrom-Json } catch { throw 'SliceModels must be valid JSON.' }
+try { $given = $SliceModels | ConvertFrom-Json } catch { throw 'SliceModels must be valid JSON.' }
+if ($Repo) {
+    $sep = [char]0x1f; $end = [char]0x1e
+    # The trailer holds the repo-relative path with forward slashes; accept backslashes or an absolute -Plan.
+    $repoFull = [IO.Path]::GetFullPath($Repo).TrimEnd('\', '/')
+    $planKey = $Plan
+    if ([IO.Path]::IsPathRooted($planKey)) {
+        $planFull = [IO.Path]::GetFullPath($planKey)
+        if ($planFull.StartsWith($repoFull + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { $planKey = $planFull.Substring($repoFull.Length + 1) }
+    }
+    $planKey = ($planKey -replace '\\', '/') -replace '^\./', ''
+    $log = $null
+    try {
+        $log = & git -C $Repo log --fixed-strings "--grep=Execute-Plan: $planKey" '--format=%h%x1f%B%x1e' HEAD 2>$null
+        if ($LASTEXITCODE -ne 0) { $log = $null; Write-Warning "git log failed in $Repo; slice_models kept as given." }
+    } catch { $log = $null; Write-Warning "git log failed in ${Repo}: $_; slice_models kept as given." }
+    $merged = [ordered]@{}
+    if ($given) { foreach ($p in $given.PSObject.Properties) { $merged[$p.Name] = $p.Value } }
+    $found = 0
+    foreach ($rec in (($log -join "`n") -split $end)) {
+        if (-not $rec.Trim()) { continue }
+        $sha, $body = $rec.Trim("`n").Split($sep, 2)
+        $tr = @{}
+        foreach ($m in [regex]::Matches($body, '(?m)^(Execute-[A-Za-z]+):[ \t]*(.+?)[ \t]*$')) { $tr[$m.Groups[1].Value] = $m.Groups[2].Value }
+        if ($tr['Execute-Plan'] -ne $planKey -or -not $tr['Execute-Slice'] -or -not $tr['Execute-Model']) { continue }
+        $slice = $tr['Execute-Slice']
+        # git log is newest first: the latest commit of a slice wins.
+        if ($merged.Contains($slice) -and $merged[$slice] -is [hashtable]) { continue }
+        $model = $tr['Execute-Model']; $effort = ''
+        if ($model -match '^(.+?)\s*\(([^)]+)\)\s*$') { $model = $Matches[1]; $effort = $Matches[2] }
+        $entry = @{ model = $model; host = [string]$tr['Execute-Host']; commit = $sha }
+        if ($effort) { $entry.effort = $effort }
+        $merged[$slice] = $entry
+        $found++
+    }
+    if ($found -eq 0 -and $null -ne $log) { Write-Warning "No slice commit with Execute-Plan: $planKey on HEAD of $Repo; slice_models kept as given." }
+    $SliceModels = ConvertTo-Json -InputObject $merged -Compress -Depth 4
+}
 foreach ($tokenValue in @($InputTokens,$OutputTokens)) { if ($tokenValue -and $tokenValue -notmatch '^\d+$') { throw 'Token counts must be nonnegative integers or blank.' } }
 $record = [pscustomobject][ordered]@{
     started_at=$StartedAt; finished_at=$FinishedAt; plan=$Plan; branch=$Branch; commit_sha=$CommitSha
