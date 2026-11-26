@@ -6,6 +6,7 @@ param(
     [int]$PrNumber,
     [string]$GateRunsJson,
     [string]$GateTimelineJson,
+    [string]$PrWorkItemsJson,
     [string]$AzOrg = 'https://dev.azure.com/confitecDevOps',
     [string]$AzProject = 'brixbroker',
     [switch]$NoFetch,
@@ -19,7 +20,8 @@ param(
 # for a failure). WARN never changes the exit. Item 10's PR gate part (pipeline 158)
 # only ever WARNs: the gate runs after this check, so it cannot make the exit 2.
 # -GateRunsJson and -GateTimelineJson replace the Azure DevOps queries (test seam) for the
-# PR gate (pipeline 158) runs and the timeline of its newest run.
+# PR gate (pipeline 158) runs and the timeline of its newest run; -PrWorkItemsJson replaces the
+# query of the work items linked to the PR (item 39).
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -187,6 +189,9 @@ try {
         else { Add-Finding 1 'BLOCK' $c.Old 0 "$label existed at the merge-base and is gone. Restore it and add new tests beside it, or name the removal in the plan." }
     }
 
+    # An ADR this branch renames or deletes frees its number: a slug fix is not a collision.
+    $freedAdrs = @($changes | Where-Object { $_.Status -ne 'M' -and $_.Old -and $_.Old -ne $_.Path } | ForEach-Object Old) + @($changes | Where-Object { $_.Status -eq 'D' } | ForEach-Object { $_.Old; $_.Path })
+    $baseAdrs = @(@((Invoke-Git @('ls-tree', '--name-only', $Base, 'docs/adr/') -AllowFail).Lines) | Where-Object { $_ -and $freedAdrs -notcontains $_ })
     foreach ($c in $changes) {
         $p = $c.Path
         # Item 2 - shared frontend libs and global styles.
@@ -207,10 +212,34 @@ try {
             }
         }
         if ($c.Status -eq 'D') { continue }
+        # Item 32 - a new ADR number already taken in Base by another file (PR 2267). Base, not the
+        # merge-base: the collision comes from what entered the master after the branch point.
+        if ($c.Status -ne 'M' -and $p -match '^docs/adr/(\d{4})-[^/]+\.md$') {
+            $number = $Matches[1]
+            $taken = @($baseAdrs | Where-Object { $_ -match "^docs/adr/$number-" -and $_ -ne $p })
+            if ($taken.Count) { Add-Finding 32 'BLOCK' $p 0 "ADR $number already exists in $Base as $($taken[0]). Renumber this ADR to the next free number and update every citation and the vocabulary line." }
+        }
         foreach ($a in Get-Added $p) {
             # Item 9 - evidence that lives only on this machine.
             if ($p -match '^(docs|backlog)/.+\.md$' -and $a.Text -match '(?i)%TEMP%|AppData[\\/]Local[\\/]Temp') {
                 Add-Finding 9 'WARN' $p $a.Line 'Local temp path in docs. Attach the evidence to the WI or commit it under docs/releases/.'
+            }
+            # Item 9 - a pointer nobody else can open: tmp/ is gitignored, ~/.claude is one machine,
+            # a personal OneDrive or a claude.ai artifact needs the author's account (PRs 2122, 2254, 2396, 2443).
+            elseif ($p -match '^(docs|backlog|\.cursor/plans)/.+\.md$' -and $a.Text -match '(?i)(?<![\w./-])tmp/[\w.-]|~[\\/]\.claude[\\/]|%USERPROFILE%[\\/]\.claude|-my\.sharepoint\.com/|claude\.ai/(code/)?artifact') {
+                Add-Finding 9 'WARN' $p $a.Line 'Pointer outside Git (tmp/, ~/.claude, personal OneDrive or claude.ai artifact). Version the file under backlog/tasks/assets or docs/, attach it to the PR, or keep only the measured value.'
+            }
+            # Item 33 - a pending-owner marker must not reach the merge (PRs 2267, 2303, 2423).
+            if ($p -match '^(docs|backlog|\.cursor/plans)/.+\.md$' -and $a.Text -match '(?i)\bowner\b' -and $a.Text -match '(?i)(aval|aprova\S{1,3}o|confirma\S{1,3}o|ratifica\S{1,3}o)\s+(do\s+owner\s+)?pendente|pendente\s+de\s+(aval|aprova\S{1,3}o|confirma\S{1,3}o|ratifica\S{1,3}o)\s+do\s+owner|aguardando\s+(a\s+|o\s+)?(aval|aprova\S{1,3}o|confirma\S{1,3}o|ratifica\S{1,3}o)\s+do\s+owner|pendente\s*:\s*(aval|aprova\S{1,3}o|confirma\S{1,3}o|ratifica\S{1,3}o)\s+do\s+owner') {
+                Add-Finding 33 'WARN' $p $a.Line 'Pending-owner marker. When the owner decides, write "decisao do owner, <date>" with the thread; until then list the pending item in the PR description.'
+            }
+            # Item 34 - the design system never imports core (PR 2448, broker-select).
+            if ($p -match '^platform/frontend/libs/design-system/.+\.ts$' -and $a.Text -match "\bfrom\s+['""](core(/[^'""]*)?|[^'""]*/core/src/[^'""]*)['""]|\bimport\s*\(\s*['""]core(/[^'""]*)?['""]") {
+                Add-Finding 34 'BLOCK' $p $a.Line 'The design system imports core. Keep the helper in the design system or take it as an input.'
+            }
+            # Item 35 - a feature does not target Material internals (PR 2129, rule 036).
+            if ($p -match '^platform/frontend/libs/(features|[^/]+/features)/.+\.scss$' -and ($a.Text -replace '//.*$', '') -match '\.(mat-mdc|mdc)-[\w-]') {
+                Add-Finding 35 'WARN' $p $a.Line 'Material internal class in a feature style (rule 036). Use the broker-* API, or point out the gap.'
             }
             # Item 12 - native form controls, buttons and Material spinners in feature templates.
             if ($p -match $featureHtmlPattern -and $a.Text -match '<(input|select|textarea|button|mat-spinner|mat-progress-spinner)\b') {
@@ -280,6 +309,32 @@ try {
                         if (Test-JustifiedDeep $lines) { Add-Finding 14 'WARN' $p $a.Line '::ng-deep without its own comment; another ::ng-deep in this file is justified. Confirm the same reason applies.' }
                         else { Add-Finding 14 'BLOCK' $p $a.Line '::ng-deep without a justification comment right above its rule (rule 070).' }
                     }
+                }
+            }
+        }
+    }
+
+    # Item 36 - a new backend error code has copy in the frontend (PRs 2296, 2314, 2429). Codes are the
+    # dotted lowercase literals on added lines that build an Error or name a *Code constant.
+    $newCodes = [ordered]@{}
+    foreach ($c in $changes | Where-Object { $_.Status -ne 'D' -and $_.Path -match '^platform/backend/src/.+\.cs$' -and $_.Path -notmatch '/Migrations/' }) {
+        foreach ($a in Get-Added $c.Path) {
+            if ($a.Text -notmatch '\bError\.(Validation|NotFound|Conflict|Forbidden|Failure)\s*\(|\bnew\s+Error\s*\(|\b\w*Code\s*=\s*"') { continue }
+            foreach ($m in [regex]::Matches($a.Text, '"([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)"')) {
+                if (-not $newCodes.Contains($m.Groups[1].Value)) { $newCodes[$m.Groups[1].Value] = [pscustomobject]@{ Path = $c.Path; Line = $a.Line } }
+            }
+        }
+    }
+    if ($newCodes.Count) {
+        $copyFiles = @(@((Invoke-Git @('ls-files', 'platform/frontend')).Lines) + @($changes | Where-Object { $_.Status -ne 'D' } | ForEach-Object Path) |
+            Where-Object { $_ -match '^platform/frontend/.+error-copy[^/]*\.ts$' -and $_ -notmatch '\.spec\.ts$' } | Sort-Object -Unique)
+        if (-not $copyFiles.Count) { Add-Finding 36 'UNVERIFIED' '' 0 'No *error-copy*.ts file found under platform/frontend; copy of new error codes not checked.' }
+        else {
+            $copyText = (@($copyFiles | ForEach-Object { Get-CurrentText $_ }) -join "`n")
+            foreach ($code in $newCodes.Keys) {
+                if ($copyText -notmatch ('[''"`]' + [regex]::Escape($code) + '[''"`]')) {
+                    $where = $newCodes[$code]
+                    Add-Finding 36 'WARN' $where.Path $where.Line "Error code $code has no copy in the frontend error-copy files. Add the pt-BR message (ERROR_COPY_PT, or the admin-web copy) in this PR."
                 }
             }
         }
@@ -363,6 +418,32 @@ try {
     foreach ($table in $enabled.Keys | Sort-Object) {
         if (-not $forced.ContainsKey($table)) { Add-Finding 4 'BLOCK' $enabled[$table] 0 "Table $table enables RLS without FORCE ROW LEVEL SECURITY (ADR-0009)." }
     }
+    # Item 37 - each new RLS table has a test that reads relforcerowsecurity (PR 2254). git grep
+    # --untracked also sees a test file the branch has not committed yet.
+    if ($enabled.Count) {
+        $rlsTests = Invoke-Git @('grep', '-l', '--untracked', '-e', 'relforcerowsecurity', '--', 'platform/backend/tests') -AllowFail
+        if ($rlsTests.Code -gt 1) { Add-Finding 37 'UNVERIFIED' '' 0 'git grep could not search platform/backend/tests for relforcerowsecurity.' }
+        else {
+            $rlsText = (@($rlsTests.Lines | Where-Object { $_ } | ForEach-Object { Get-CurrentText $_ }) -join "`n")
+            foreach ($table in $enabled.Keys | Sort-Object) {
+                $name = ($table -split '\.')[-1]
+                if ($rlsText -notmatch ('(?<![\w])' + [regex]::Escape($name) + '(?![\w])')) {
+                    Add-Finding 37 'WARN' $enabled[$table] 0 "No test with relforcerowsecurity names table $name. Add one in the mold of ImportBatchesIntegrationTests (relrowsecurity and relforcerowsecurity true)."
+                }
+            }
+        }
+    }
+    # Item 38 - a new migration dated before the newest one Base already has in the same folder (PRs 2429, 2195).
+    foreach ($p in $newMigrations | Where-Object { $_ -notmatch $designerPattern }) {
+        if ([IO.Path]::GetFileName($p) -notmatch '^(\d{14})_') { continue }
+        $stamp = $Matches[1]
+        $dir = $p.Substring(0, $p.LastIndexOf('/') + 1)
+        $newest = @((Invoke-Git @('ls-tree', '--name-only', $Base, $dir) -AllowFail).Lines |
+            ForEach-Object { [IO.Path]::GetFileName($_) } | Where-Object { $_ -match '^\d{14}_' -and $_ -notmatch $designerPattern } | Sort-Object | Select-Object -Last 1)
+        if ($newest.Count -and $newest[0].Substring(0, 14) -gt $stamp) {
+            Add-Finding 38 'WARN' $p 0 "Migration is dated before $($newest[0]), already in $Base. Run the Architecture tests with $Base merged and confirm the snapshot has both sides and no pending model change."
+        }
+    }
 
     # Item 10 - the PR gate (pipeline 158) must have run green over the last iteration.
     # Skipped silently when the branch has no PR (the delegation to 158 then lapses, see /execute-ig step 10).
@@ -381,6 +462,19 @@ try {
     }
     # The gate runs after this check (it validates what the dev pushes), so nothing here may be UNVERIFIED:
     # a gate that cannot be read or matched locally only warns, and the exit stays 0 without other findings.
+    # Item 39 - the PR has a linked work item (PR 2314). Only warns, like the rest of the PR lookup.
+    # Decided on the raw JSON: in Windows PowerShell an empty array from ConvertFrom-Json reads as $null.
+    $wiRaw = $null
+    if ($PrWorkItemsJson) { $wiRaw = Get-Content -Raw -Encoding UTF8 -LiteralPath $PrWorkItemsJson }
+    elseif (-not $NoFetch -and $prNo -gt 0) {
+        $previous = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        try { $out = & az repos pr work-item list --id "$prNo" --organization $AzOrg -o json 2>$null; if ($LASTEXITCODE -eq 0) { $wiRaw = ($out -join "`n") } else { $wiRaw = '' } }
+        catch { $wiRaw = '' } finally { $ErrorActionPreference = $previous }
+    }
+    if ($null -ne $wiRaw) {
+        if ($wiRaw -notmatch '^\s*\[') { Add-Finding 39 'WARN' '' 0 "Could not read the work items linked to PR $prNo (az login?)." }
+        elseif ($wiRaw -match '^\s*\[\s*\]\s*$') { Add-Finding 39 'WARN' '' 0 "PR $prNo has no linked work item. Link the WI in the PR, not only in the branch name." }
+    }
     if ($gateLookupFailed) { Add-Finding 10 'WARN' '' 0 "Could not read the PR or the runs of pipeline $GatePipelineId (az login?). Gate freshness not checked." }
     elseif ($prNo -and $null -ne $gateRuns) {
         $ordered = @($gateRuns | Where-Object { $null -ne $_ } | Sort-Object { [int](Get-Prop $_ 'id') } -Descending)

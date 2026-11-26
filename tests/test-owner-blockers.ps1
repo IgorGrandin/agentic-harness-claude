@@ -227,6 +227,66 @@ try {
     $fresh=Run-Check @('-GateRunsJson',$gruns)
     Require (@($fresh.Result.Findings | Where-Object { $_.Item -eq 10 -and $_.Message -like '*came after it*' }).Count -eq 0) 'Item 10: HEAD equal to the validated head still reported commits after the run'
 
+    # Items 9 (pointers outside Git), 32-39 - the checks drawn from the owner threads of PRs 2121-2448.
+    G checkout -q -- .; G clean -qfd; G checkout -q master
+    $crmMig='platform/backend/src/Modules/Crm/Insurtech.Crm.Infrastructure/Migrations'
+    $copy='platform/frontend/libs/core/src/lib/http/api-error-copy.pt.ts'
+    Put 'docs/adr/0075-origem.md' "# ADR 0075`n"
+    Put "$crmMig/20261125000000_Base.cs" "class Base { void Up() {} }`n"
+    Put $copy "export const ERROR_COPY_PT = {`n  'crm.known': 'Conhecido.',`n};`n"
+    G add -A; G commit -q -m owner-threads-base
+    G checkout -q -b feature/threads
+    Put 'docs/adr/0075-semente.md' "# ADR 0075 again`n"
+    Put 'docs/adr/0076-livre.md' "# ADR 0076`n"
+    Put "$crmMig/20261120000000_Rls.cs" "class Rls { void Up() { Sql(""ALTER TABLE crm.lead_notes ENABLE ROW LEVEL SECURITY; ALTER TABLE crm.lead_notes FORCE ROW LEVEL SECURITY;""); } }`n"
+    Put "$crmMig/20261126000000_Rls2.cs" "class Rls2 { void Up() { Sql(""ALTER TABLE crm.tested ENABLE ROW LEVEL SECURITY; ALTER TABLE crm.tested FORCE ROW LEVEL SECURITY;""); } }`n"
+    Put 'platform/backend/tests/I/RlsTests.cs' "// SELECT relforcerowsecurity FROM pg_class WHERE relname = 'tested'`n"
+    Put 'platform/frontend/libs/design-system/src/x.ts' "import { Component } from '@angular/core';`nimport { a } from 'core';`nconst b = import('core/http');`n"
+    Put "$feat/e.scss" ".x .mat-mdc-button { gap: 0; }`n// .mdc-foo is the Material class`n.y { gap: 0; }`n"
+    Put 'docs/pending.md' "Aval do owner pendente para o layout.`nVer tmp/pipeline/x.log`nVer ~/.claude/notes.md`nCodigo em src/tmp/x.ts`nAprovado pelo owner em 2026-11-20.`nAguardando confirma$([char]0xE7)$([char]0xE3)o do owner.`nPendente: aval do owner.`n"
+    Put 'platform/backend/src/Modules/Crm/Insurtech.Crm.Domain/LeadErrors.cs' "static class LeadErrors {`n  public static readonly Error A = Error.Conflict(""crm.new_code"", ""msg"");`n  public static readonly Error B = Error.NotFound(""crm.known"", ""msg"");`n  const string Route = ""crm.route.name"";`n}`n"
+    $wiEmpty=Join-Path $temp 'wi-empty.json'; '[ ]' | Set-Content -Encoding UTF8 -LiteralPath $wiEmpty
+    $wiOne=Join-Path $temp 'wi-one.json'; '[{"id":"1","url":"x"}]' | Set-Content -Encoding UTF8 -LiteralPath $wiOne
+    $wiBad=Join-Path $temp 'wi-bad.txt'; 'ERROR: az login' | Set-Content -Encoding UTF8 -LiteralPath $wiBad
+    $th=Run-Check @('-PrWorkItemsJson',$wiEmpty)
+    $f=@($th.Result.Findings)
+    function Lines-Of($Items,[int]$Item,[string]$PathLike){ (@($Items | Where-Object { $_.Item -eq $Item -and $_.Path -like $PathLike } | ForEach-Object Line | Sort-Object) -join ',') }
+    Require ($th.Exit -eq 1) "Owner-thread checks did not block: exit $($th.Exit)"
+    $i32=@($f | Where-Object { $_.Item -eq 32 })
+    Require ($i32.Count -eq 1 -and $i32[0].Severity -eq 'BLOCK' -and $i32[0].Path -eq 'docs/adr/0075-semente.md') "Item 32: ADR number collision not blocked once: $($i32 | ForEach-Object Path)"
+    Require ((Lines-Of $f 9 'docs/pending.md') -eq '2,3') "Item 9: tmp/ and ~/.claude pointers wrong (got '$(Lines-Of $f 9 'docs/pending.md')')"
+    Require ((Lines-Of $f 33 'docs/pending.md') -eq '1,6,7')"Item 33: pending-owner marker wrong (got '$(Lines-Of $f 33 'docs/pending.md')')"
+    $i34=@($f | Where-Object { $_.Item -eq 34 -and $_.Severity -eq 'BLOCK' } | ForEach-Object Line | Sort-Object)
+    Require (($i34 -join ',') -eq '2,3') "Item 34: design system importing core not blocked on 2,3 (got '$($i34 -join ',')')"
+    Require ((Lines-Of $f 35 '*e.scss') -eq '1') "Item 35: Material internal class wrong (got '$(Lines-Of $f 35 '*e.scss')')"
+    $i36=@($f | Where-Object { $_.Item -eq 36 })
+    Require ($i36.Count -eq 1 -and $i36[0].Severity -eq 'WARN' -and $i36[0].Message -like '*crm.new_code*' -and $i36[0].Line -eq 2) "Item 36: error code without copy wrong: $($i36 | ForEach-Object Message)"
+    $i37=@($f | Where-Object { $_.Item -eq 37 })
+    Require ($i37.Count -eq 1 -and $i37[0].Message -like '*lead_notes*') "Item 37: RLS table without a FORCE test wrong: $($i37 | ForEach-Object Message)"
+    $i38=@($f | Where-Object { $_.Item -eq 38 })
+    Require ($i38.Count -eq 1 -and $i38[0].Path -like '*20261120000000_Rls.cs') "Item 38: migration older than Base wrong: $($i38 | ForEach-Object Path)"
+    $i39=@($f | Where-Object { $_.Item -eq 39 })
+    Require ($i39.Count -eq 1 -and $i39[0].Message -like '*no linked work item*') "Item 39: PR without work item not warned: $($i39 | ForEach-Object Message)"
+    $one=Run-Check @('-PrWorkItemsJson',$wiOne)
+    Require (@($one.Result.Findings | Where-Object { $_.Item -eq 39 }).Count -eq 0) 'Item 39: PR with a linked work item was reported'
+    $bad=Run-Check @('-PrWorkItemsJson',$wiBad)
+    Require (@($bad.Result.Findings | Where-Object { $_.Item -eq 39 -and $_.Message -like '*Could not read*' }).Count -eq 1) 'Item 39: unreadable work-item list not warned'
+    # Without any error-copy file the codes are UNVERIFIED.
+    G rm -q $copy
+    $nocopy=Run-Check
+    Require (@($nocopy.Result.Findings | Where-Object { $_.Item -eq 36 -and $_.Severity -eq 'UNVERIFIED' }).Count -eq 1) 'Item 36: missing error-copy file did not yield UNVERIFIED'
+
+    # Renaming an ADR (slug fix), or deleting and re-adding it, keeps its number free.
+    G checkout -q -- .; G clean -qfd; G checkout -q -b feature/adr-rename master
+    G mv docs/adr/0075-origem.md docs/adr/0075-origem-nova.md
+    $ren=Run-Check
+    Require (@($ren.Result.Findings | Where-Object { $_.Item -eq 32 }).Count -eq 0) "Item 32: renamed ADR was blocked: $($ren.Result.Findings | Where-Object { $_.Item -eq 32 } | ForEach-Object Message)"
+    G mv docs/adr/0075-origem-nova.md docs/adr/0075-origem.md
+    G rm -q docs/adr/0075-origem.md; Put 'docs/adr/0075-outro.md' "# totally different content`nline`nline`n"
+    $readd=Run-Check
+    Require (@($readd.Result.Findings | Where-Object { $_.Item -eq 32 }).Count -eq 0) 'Item 32: ADR deleted and re-added under a new slug was blocked'
+    G checkout -q -- .; G clean -qfd; G reset -q --hard; G checkout -q feature/threads
+
     # Hook: denies edits to generated type files, allows everything else.
     $hook=Join-Path $root 'skills/execute-ig/scripts/block-generated-api-edit.ps1'
     function Invoke-Hook([string]$Json){ ($Json | & powershell -NoProfile -ExecutionPolicy Bypass -File $hook) -join '' }
