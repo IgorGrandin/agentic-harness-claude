@@ -1,7 +1,7 @@
 # Bloqueios recorrentes do owner nas PRs do dev
 
 Extraídos das revisões do Ricardo Stamato nas PRs 1495–1822 e na WI 3595 (levantamento de 2026-10-23), com o item 6
-ajustado ao fluxo atual. Os itens 21 a 30 vêm das PRs de dev 1582–2116 (levantamento de 2026-11-13). É a fonte única: os `CLAUDE.local.md` das pastas do BrixBroker só carregam a autorização de
+ajustado ao fluxo atual. Os itens 21 a 30 vêm das PRs de dev 1582–2116 (levantamento de 2026-11-13); o item 31, da convenção de erro do backend (2026-11-26). É a fonte única: os `CLAUDE.local.md` das pastas do BrixBroker só carregam a autorização de
 implementar, e esta lista é lida sob demanda por `/execute-ig` (revisão de integração), `/revise` e
 `/execute-code-review-ig`. Os números dos itens são citados pelo script e pelas skills: não renumere.
 
@@ -9,7 +9,7 @@ O Claude Code não carrega `.cursor/rules/*.mdc` sozinho: ao planejar, implement
 e confira o diff contra cada item que a área tocada alcança.
 
 Parte da lista é checada por script, que o `/execute-ig` (passos 5 e 7) e o `/revise` rodam:
-`scripts/check-owner-blockers.ps1`. Ele **bloqueia** os itens 1, 3, 4 (migration publicada e RLS sem `FORCE`), 10, 14 e 21 (`$any`), e **alerta** os itens 2 (inclui `!important`), 4
+`scripts/check-owner-blockers.ps1`. Ele **bloqueia** os itens 1, 3, 4 (migration publicada e RLS sem `FORCE`), 10, 14, 21 (`$any`) e 31 (`throw new` sem justificativa), e **alerta** os itens 2 (inclui `!important`), 4
 (`DropColumn`/`DropTable` no `Up`), 9, 12, 13, 21 (`as any`), 22, 24 e 25. Um hook no `.claude/settings.local.json` do projeto nega Edit/Write em `generated/*.types.ts` (item 3). Os
 demais itens são de julgamento: o script não os enxerga.
 
@@ -110,3 +110,17 @@ demais itens são de julgamento: o script não os enxerga.
     Mostre o vermelho ao remover a defesa, na PR, em texto (complementa o item 19).
 30. **Lógica nova sem teste não entra como "depois"** (2113: `detailLoadGeneration` e o AC 39 sem assert de
     `LastInboundSequence` nem de não lidas; 2031: três testes do AC 25; 1972: retry de tempo real).
+
+## Acrescentado em 2026-11-26
+
+31. **Falha esperada sai pelo `Result`, não por exceção.** Regra de negócio, validação, não encontrado, conflito e
+    permissão retornam `Result.Failure(Error.Validation|NotFound|Conflict|Forbidden|Failure(code, message, params))`,
+    e o endpoint responde com `ToProblemDetails()` (`BuildingBlocks.Api/Extensions/ResultExtensions.cs`). É esse
+    caminho que leva o `errorCode` estável e o `errorParams` ao frontend, que mostra a copy pelo
+    `resolveErrorMessagePt` (ADR-0006, ADR-0032, ADR-0043). Exceção que escapa cai no `GlobalExceptionHandler` e vira
+    500 genérico, sem código: a tela não tem o que mostrar. `throw` continua certo para invariante e erro de
+    programação, argumento inválido, falha de infraestrutura e job em background sem resposta HTTP; nesses casos,
+    um comentário `//` logo acima do `throw` (ou da instrução, ou do `if`, que o contém), ou no fim da própria linha,
+    diz por que o `Result` não serve, como no `::ng-deep` do item 14. Doc XML (`///`) e comentário no fim de outra
+    instrução não contam. O script bloqueia `throw new` acrescentado em `*.Application/Features/**` e
+    `*.Api/Endpoints/**` do backend sem esse comentário.

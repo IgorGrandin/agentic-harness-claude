@@ -64,6 +64,51 @@ try {
     Put "$feat/c.ts" "const x = y as any;`n// as any in a comment`n"
     Put "$feat/d.spec.ts" "const s = getComputedStyle(el);`n"
     Put "$feat/d.scss" ".a:nth-child(2) { color: var(--md-a, #fff); }`n"
+    $app='platform/backend/src/Modules/Crm/Insurtech.Crm.Application/Features/X'
+    Put "$app/Handler.cs" (@(
+        'class Handler {',                                                  # 1
+        '  void A() {',                                                     # 2
+        '    if (x) throw new InvalidOperationException("crm.not_found");',  # 3 BLOCK
+        '    // Invariant: the stage is seeded with the tenant.',            # 4
+        '    if (y) throw new InvalidOperationException("seeded");',         # 5 ok
+        '    // Background job: there is no HTTP response to carry a Result.',# 6
+        '    var batch = await db.Batches',                                  # 7
+        '',                                                                  # 8
+        '        .SingleOrDefaultAsync(ct)',                                 # 9
+        '        ?? throw new InvalidOperationException("batch");',          # 10 ok
+        '    throw new ArgumentException("x"); // guard: programming error',  # 11 ok
+        '    // throw new InvalidOperationException("old");',                # 12 ok
+        '  }',                                                               # 13
+        '}') -join "`n")
+    Put "$app/Handler2.cs" (@(
+        'class H2 {',                                                         # 1
+        '  void A() {',                                                       # 2
+        '    // Unrelated: loads the stage.',                                 # 3
+        '    var s = Load(); // cached',                                      # 4
+        '    if (s is null) throw new NotFoundException();',                  # 5 BLOCK: trailing comment above is code
+        '    var u = Load(); /* x */',                                        # 6
+        '    if (u is null) throw new NotFoundException();',                  # 7 BLOCK
+        '    throw new InvalidOperationException("call to https://api.x failed");', # 8 BLOCK: // inside a string
+        '    // Invariant: seeded.',                                          # 9
+        '    if (x is null)',                                                 # 10
+        '    {',                                                              # 11
+        '        throw new InvalidOperationException();',                     # 12 ok: Allman
+        '    }',                                                              # 13
+        '    // Invariant: long query.',                                      # 14
+        '    var b = await db.B',                                             # 15
+        '        .Where(a)', '        .Where(b)', '        .Where(c)', '        .Where(d)', '        .Where(e)', '        .Where(f)', # 16-21
+        '        .SingleOrDefaultAsync(ct)',                                  # 22
+        '        ?? throw new InvalidOperationException("b");',               # 23 ok: long statement
+        '  }',                                                                # 24
+        '  /// <summary>Gets.</summary>',                                     # 25
+        '  public Foo Get(int id) =>',                                        # 26
+        '      repo.Find(id) ?? throw new KeyNotFoundException();',           # 27 BLOCK: XML doc is not a justification
+        '  // Unrelated comment',                                             # 28
+        '  [HttpGet]',                                                        # 29
+        '  public object G() => throw new InvalidOperationException();',      # 30 BLOCK: the attribute stops the walk
+        '}') -join "`n")
+    Put 'platform/backend/src/Modules/Crm/Insurtech.Crm.Api/Endpoints/CrmRoutes.cs' "class R {`n  object F() => repo.Find()`n    ?? throw new KeyNotFoundException();`n}`n"
+    Put 'platform/backend/src/Modules/Crm/Insurtech.Crm.Infrastructure/Store.cs' "class S { void F() { throw new IOException(); } }`n"
     $r=Run-Check
     $res=$r.Result
     Require ($r.Exit -eq 1 -and $res.Status -eq 'BLOCKED') "Violations did not block: exit $($r.Exit)"
@@ -103,6 +148,13 @@ try {
     Require (Has $res 24 'WARN' '*d.scss') 'Item 24: positional selector not warned'
     Require (Has $res 25 'WARN' '*d.spec.ts') 'Item 25: getComputedStyle not warned'
     Require (@($res.Findings | Where-Object { $_.Item -eq 2 -and $_.Message -like '*!important*' }).Count -eq 1) 'Item 2: !important in a shared style not warned'
+    $throws=@($res.Findings | Where-Object { $_.Item -eq 31 })
+    Require (@($throws | Where-Object { $_.Path -like '*Features/X/Handler.cs' -and $_.Line -eq 3 -and $_.Severity -eq 'BLOCK' }).Count -eq 1) 'Item 31: unjustified throw in a feature handler not blocked'
+    Require (@($throws | Where-Object { $_.Path -like '*Endpoints/CrmRoutes.cs' -and $_.Line -eq 3 -and $_.Severity -eq 'BLOCK' }).Count -eq 1) 'Item 31: unjustified ?? throw in an endpoint not blocked'
+    $lines31=@($throws | ForEach-Object { "$($_.Path):$($_.Line)" })
+    $h2=@($throws | Where-Object { $_.Path -like '*Features/X/Handler2.cs' -and $_.Severity -eq 'BLOCK' } | ForEach-Object Line | Sort-Object)
+    Require (($h2 -join ',') -eq '5,7,8,27,30') "Item 31: walk-up edge cases wrong in Handler2.cs (got lines '$($h2 -join ',')', expected 5,7,8,27,30)"
+    Require ($throws.Count -eq 7) "Item 31: justified, commented-out or out-of-scope throw was reported (got $($lines31 -join ', '))"
 
     # A branch-only migration edited in the working tree is not blocked (no deploy lookup).
     G checkout -q -- .; G clean -qfd

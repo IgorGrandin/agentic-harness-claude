@@ -233,6 +233,28 @@ try {
             if ($p -match '^platform/frontend/.+\.spec\.ts$' -and $a.Text -match '\bgetComputedStyle\s*\(') {
                 Add-Finding 25 'WARN' $p $a.Line 'getComputedStyle in a jsdom test. Assert the class or attribute, and measure the layout in a real browser.'
             }
+            # Item 31 - an expected failure leaves through Result + ToProblemDetails (errorCode for the
+            # frontend); a throw in a feature handler or endpoint needs a comment saying why Result does not fit.
+            # String literals are blanked first, so a URL in a message is not read as a comment.
+            $code31 = $a.Text -replace '@?"(?:[^"\\]|\\.)*"', '""'
+            if ($p -match '^platform/backend/src/.+\.(Application/Features|Api/Endpoints)/.+\.cs$' -and $code31 -match '\bthrow\s+new\b' -and $code31 -notmatch '^\s*(//|/\*|\*)' -and $code31 -notmatch '\bthrow\s+new\b.*//(?!/)') {
+                $lines = ((Get-CurrentText $p) -replace "`r`n", "`n") -split "`n"
+                # Walk up over blank lines, a lone `{` (Allman) and the earlier lines of the same statement.
+                # A trailing comment on an earlier line is code, not the justification: strip it before reading the end.
+                $i = $a.Line - 2; $steps = 0
+                while ($i -ge 0 -and $steps -lt 30) {
+                    $t = $lines[$i].Trim()
+                    if ($t -match '^(//|/\*|\*)' -or $t -match '^(#|\[.*\]$)') { break }
+                    $code = (($t -replace '@?"(?:[^"\\]|\\.)*"', '""') -replace '\s*//.*$', '') -replace '\s*/\*.*\*/$', ''
+                    if ($code -ne '' -and $code -ne '{' -and $code -match '[;{}]$') { break }
+                    $i--; $steps++
+                }
+                $prev = if ($i -ge 0) { $lines[$i].Trim() } else { '' }
+                # A `///` XML doc says what the member does, not why Result does not fit.
+                if ($prev -notmatch '^(//(?!/)|/\*(?!\*)|\*)') {
+                    Add-Finding 31 'BLOCK' $p $a.Line 'throw in a feature handler or endpoint becomes a generic 500 without errorCode. Return Result.Failure(Error.X(code, ...)) and ToProblemDetails(), or write a comment right above saying why Result does not fit (invariant, infrastructure, background job).'
+                }
+            }
             # Item 2 - !important in a shared lib reaches every app that consumes it (PR 1776).
             if ($p -match $sharedPattern -and $p -match '\.scss$' -and $a.Text -match '!important') {
                 Add-Finding 2 'WARN' $p $a.Line '!important in a shared style. It reaches every app and control; scope it to the screen.'
